@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minecraft Stats API Tester</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+      }
+
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      h1 {
+        color: #333;
+        margin-bottom: 10px;
+      }
+
+      .subtitle {
+        color: #666;
+        margin-bottom: 30px;
+      }
+
+      .status {
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        font-weight: 500;
+      }
+
+      .status.loading {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      button {
+        background: #667eea;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 5px;
+        transition: background 0.3s ease;
+      }
+
+      button:hover {
+        background: #5568d3;
+      }
+
+      button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      .section {
+        margin: 30px 0;
+      }
+
+      .section h2 {
+        color: #333;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #667eea;
+        padding-bottom: 10px;
+      }
+
+      input[type="file"] {
+        display: block;
+        margin: 15px 0;
+        padding: 10px;
+        border: 2px dashed #667eea;
+        border-radius: 6px;
+        width: 100%;
+      }
+
+      input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        margin: 10px 0;
+      }
+
+      pre {
+        background: #f4f4f4;
+        padding: 15px;
+        border-radius: 6px;
+        overflow-x: auto;
+        font-size: 12px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .player-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+      }
+
+      .player-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        image-rendering: pixelated;
+      }
+
+      .player-info {
+        flex: 1;
+      }
+
+      .player-name {
+        font-weight: bold;
+        font-size: 16px;
+        color: #333;
+      }
+
+      .player-uuid {
+        font-size: 12px;
+        color: #666;
+        font-family: monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🧪 Minecraft Stats API Tester</h1>
+      <p class="subtitle">Test the API server functionality</p>
+
+      <div id="status" class="status loading">Checking API status...</div>
+
+      <div class="section">
+        <h2>1. Health Check</h2>
+        <button onclick="checkHealth()">Check API Health</button>
+        <pre id="healthResult"></pre>
+      </div>
+
+      <div class="section">
+        <h2>2. Upload Stats Files</h2>
+        <input type="file" id="fileInput" multiple accept=".json" />
+        <button onclick="uploadFiles()">Upload to API</button>
+        <div id="uploadResults"></div>
+      </div>
+
+      <div class="section">
+        <h2>3. Get Player Profile</h2>
+        <input
+          type="text"
+          id="uuidInput"
+          placeholder="Enter player UUID (with or without dashes)"
+        />
+        <button onclick="getPlayer()">Fetch Player</button>
+        <pre id="playerResult"></pre>
+      </div>
+
+      <div class="section">
+        <h2>4. Local Stats (From uploads/stats folder)</h2>
+        <button onclick="getConfig()">View Config & Stats Dir</button>
+        <button onclick="listLocalFiles()">List Local Files</button>
+        <button onclick="getAllLocalStats()">Get All Local Stats</button>
+        <div id="localResults"></div>
+        <pre id="localResult"></pre>
+      </div>
+
+      <div class="section">
+        <h2>5. Player Inventory (From uploads/playerdata folder)</h2>
+        <input
+          type="text"
+          id="inventoryUuidInput"
+          placeholder="Enter player UUID to view inventory"
+        />
+        <button onclick="getPlayerInventory()">Get Inventory</button>
+        <button onclick="getAllStatsWithInventory()">
+          Get All Players + Inventories
+        </button>
+        <div id="inventoryResults"></div>
+        <pre id="inventoryResult"></pre>
+      </div>
+
+      <div class="section">
+        <h2>6. Get Single Local Player</h2>
+        <input
+          type="text"
+          id="localUuidInput"
+          placeholder="Enter player UUID from local files"
+        />
+        <button onclick="getLocalPlayer()">Fetch Local Player</button>
+        <pre id="localPlayerResult"></pre>
+      </div>
+
+      <div class="section">
+        <h2>7. Cache Management</h2>
+        <button onclick="getCacheStats()">View Cache Stats</button>
+        <button onclick="clearCache()">Clear Cache</button>
+        <pre id="cacheResult"></pre>
+      </div>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:3000/api";
+
+      // Check API on load
+      window.addEventListener("load", checkHealth);
+
+      async function checkHealth() {
+        const statusEl = document.getElementById("status");
+        const resultEl = document.getElementById("healthResult");
+
+        try {
+          statusEl.className = "status loading";
+          statusEl.textContent = "Checking API...";
+
+          const response = await fetch(`${API_URL}/health`);
+          const data = await response.json();
+
+          if (data.status === "ok") {
+            statusEl.className = "status success";
+            statusEl.textContent = "✅ API is running and healthy!";
+          } else {
+            statusEl.className = "status error";
+            statusEl.textContent = "⚠️ API responded but status is not OK";
+          }
+
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          statusEl.className = "status error";
+          statusEl.textContent =
+            "❌ API is not running. Start it with: node server.js";
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function uploadFiles() {
+        const fileInput = document.getElementById("fileInput");
+        const resultsEl = document.getElementById("uploadResults");
+
+        if (!fileInput.files.length) {
+          alert("Please select files first");
+          return;
+        }
+
+        resultsEl.innerHTML = "<p>Uploading...</p>";
+
+        const formData = new FormData();
+        for (const file of fileInput.files) {
+          formData.append("stats", file);
+        }
+
+        try {
+          const response = await fetch(`${API_URL}/upload`, {
+            method: "POST",
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            resultsEl.innerHTML = `
+                        <p style="color: green; font-weight: bold;">
+                            ✅ Successfully processed ${data.playerCount} players!
+                        </p>
+                    `;
+
+            data.players.forEach((player) => {
+              const card = document.createElement("div");
+              card.className = "player-card";
+              card.innerHTML = `
+                            ${
+                              player.skin
+                                ? `<img src="https://crafatar.com/avatars/${player.uuid}?size=48&overlay" class="player-avatar">`
+                                : ""
+                            }
+                            <div class="player-info">
+                                <div class="player-name">${player.name}</div>
+                                <div class="player-uuid">${player.uuid}</div>
+                                <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                                    ⏱️ ${player.stats.playtime}min | 
+                                    💀 ${player.stats.deaths} | 
+                                    ⚔️ ${player.stats.mobKills} | 
+                                    ⛏️ ${player.stats.blocksMined}
+                                </div>
+                            </div>
+                        `;
+              resultsEl.appendChild(card);
+            });
+          }
+        } catch (error) {
+          resultsEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
+      }
+
+      async function getPlayer() {
+        const uuid = document.getElementById("uuidInput").value.trim();
+        const resultEl = document.getElementById("playerResult");
+
+        if (!uuid) {
+          alert("Please enter a UUID");
+          return;
+        }
+
+        resultEl.textContent = "Fetching player...";
+
+        try {
+          const response = await fetch(`${API_URL}/player/${uuid}`);
+          const data = await response.json();
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function getCacheStats() {
+        const resultEl = document.getElementById("cacheResult");
+        resultEl.textContent = "Fetching cache stats...";
+
+        try {
+          const response = await fetch(`${API_URL}/cache/stats`);
+          const data = await response.json();
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function clearCache() {
+        const resultEl = document.getElementById("cacheResult");
+
+        if (!confirm("Are you sure you want to clear the cache?")) {
+          return;
+        }
+
+        resultEl.textContent = "Clearing cache...";
+
+        try {
+          const response = await fetch(`${API_URL}/cache/clear`, {
+            method: "POST",
+          });
+          const data = await response.json();
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      // ========== LOCAL STATS FUNCTIONS ==========
+      async function getConfig() {
+        const resultEl = document.getElementById("localResult");
+        resultEl.textContent = "Fetching configuration...";
+
+        try {
+          const response = await fetch(`${API_URL}/config`);
+          const data = await response.json();
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function listLocalFiles() {
+        const resultEl = document.getElementById("localResult");
+        resultEl.textContent = "Fetching local files...";
+
+        try {
+          const response = await fetch(`${API_URL}/local/files`);
+          const data = await response.json();
+
+          if (data.success && data.files.length > 0) {
+            let output = `Found ${data.count} local stats files:\n\n`;
+            data.files.forEach((file) => {
+              output += `📄 ${file.filename}\n`;
+              output += `   UUID: ${file.uuid}\n`;
+              output += `   Size: ${(file.size / 1024).toFixed(2)} KB\n`;
+              output += `   Modified: ${new Date(
+                file.modified
+              ).toLocaleString()}\n\n`;
+            });
+            resultEl.textContent = output;
+          } else {
+            resultEl.textContent = JSON.stringify(data, null, 2);
+          }
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      async function getAllLocalStats() {
+        const resultsEl = document.getElementById("localResults");
+        const resultEl = document.getElementById("localResult");
+
+        resultsEl.innerHTML = "<p>Loading local stats...</p>";
+        resultEl.textContent = "";
+
+        try {
+          const response = await fetch(`${API_URL}/local/stats`);
+          const data = await response.json();
+
+          if (data.success && data.players.length > 0) {
+            resultsEl.innerHTML = `
+              <p style="color: green; font-weight: bold;">
+                ✅ Found ${data.playerCount} players in local stats folder!
+              </p>
+            `;
+
+            data.players.forEach((player) => {
+              const card = document.createElement("div");
+              card.className = "player-card";
+              card.innerHTML = `
+                ${
+                  player.uuid
+                    ? `<img src="https://crafatar.com/avatars/${player.uuid}?size=48&overlay" class="player-avatar" onerror="this.style.display='none'">`
+                    : ""
+                }
+                <div class="player-info">
+                  <div class="player-name">${player.name}</div>
+                  <div class="player-uuid">${player.uuid}</div>
+                  <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                    ⏱️ ${player.stats.playtime}min | 
+                    💀 ${player.stats.deaths} deaths | 
+                    ⚔️ ${player.stats.mobKills} mobs | 
+                    ⛏️ ${player.stats.blocksMined} blocks
+                  </div>
+                  <div style="font-size: 11px; color: #999; margin-top: 3px;">
+                    🏃 ${player.stats.distanceWalked}m walked | 
+                    🐟 ${player.stats.fishCaught} fish | 
+                    ✨ ${player.stats.itemsEnchanted} enchants
+                  </div>
+                </div>
+              `;
+              resultsEl.appendChild(card);
+            });
+
+            // Also show raw JSON
+            resultEl.textContent = JSON.stringify(data, null, 2);
+          } else {
+            resultsEl.innerHTML = `
+              <p style="color: orange;">
+                ⚠️ No stats files found in the local directory.<br>
+                Add .json files named with player UUIDs to: <code>uploads/stats/</code>
+              </p>
+            `;
+            resultEl.textContent = JSON.stringify(data, null, 2);
+          }
+        } catch (error) {
+          resultsEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
+      }
+
+      async function getLocalPlayer() {
+        const uuid = document.getElementById("localUuidInput").value.trim();
+        const resultEl = document.getElementById("localPlayerResult");
+
+        if (!uuid) {
+          alert("Please enter a UUID");
+          return;
+        }
+
+        resultEl.textContent = "Fetching local player stats...";
+
+        try {
+          const response = await fetch(`${API_URL}/local/player/${uuid}`);
+          const data = await response.json();
+
+          if (response.ok) {
+            resultEl.textContent = JSON.stringify(data, null, 2);
+          } else {
+            resultEl.textContent = `Error: ${data.error || "Player not found"}`;
+          }
+        } catch (error) {
+          resultEl.textContent = `Error: ${error.message}`;
+        }
+      }
+
+      // ========== INVENTORY FUNCTIONS ==========
+      async function getPlayerInventory() {
+        const uuid = document.getElementById("inventoryUuidInput").value.trim();
+        const resultsEl = document.getElementById("inventoryResults");
+        const resultEl = document.getElementById("inventoryResult");
+
+        if (!uuid) {
+          alert("Please enter a UUID");
+          return;
+        }
+
+        resultsEl.innerHTML = "<p>Loading inventory...</p>";
+        resultEl.textContent = "";
+
+        try {
+          const response = await fetch(`${API_URL}/local/inventory/${uuid}`);
+          const data = await response.json();
+
+          if (data.success && data.inventory.length > 0) {
+            resultsEl.innerHTML = `
+              <p style="color: green; font-weight: bold;">
+                ✅ Found ${data.totalItems} items in inventory!
+              </p>
+            `;
+
+            const mainInventory = data.inventory.filter(
+              (i) => i.slot >= 0 && i.slot <= 35
+            );
+            const armor = data.inventory.filter(
+              (i) => i.slot >= 100 && i.slot <= 103
+            );
+            const offhand = data.inventory.filter((i) => i.slot === -106);
+
+            let inventoryHtml = '<div style="margin-top: 15px;">';
+
+            if (armor.length > 0) {
+              inventoryHtml += '<h3 style="margin: 10px 0;">🛡️ Armor</h3>';
+              armor.forEach((item) => {
+                inventoryHtml += `<div style="padding: 5px; background: #f0f0f0; margin: 3px 0; border-radius: 4px;">
+                  <strong>${item.name}</strong> x${item.count}
+                  ${
+                    item.enchantments.length > 0
+                      ? " ✨ " +
+                        item.enchantments
+                          .map((e) => `${e.id} Lv${e.level}`)
+                          .join(", ")
+                      : ""
+                  }
+                </div>`;
+              });
+            }
+
+            if (mainInventory.length > 0) {
+              inventoryHtml +=
+                '<h3 style="margin: 10px 0;">🎒 Main Inventory</h3>';
+              mainInventory.forEach((item) => {
+                inventoryHtml += `<div style="padding: 5px; background: #f0f0f0; margin: 3px 0; border-radius: 4px;">
+                  <strong>${item.name}</strong> x${item.count} (Slot ${
+                  item.slot
+                })
+                  ${
+                    item.enchantments.length > 0
+                      ? " ✨ " +
+                        item.enchantments
+                          .map((e) => `${e.id} Lv${e.level}`)
+                          .join(", ")
+                      : ""
+                  }
+                  ${item.customName ? ` 📝 "${item.customName}"` : ""}
+                </div>`;
+              });
+            }
+
+            if (offhand.length > 0) {
+              inventoryHtml += '<h3 style="margin: 10px 0;">🖐️ Offhand</h3>';
+              offhand.forEach((item) => {
+                inventoryHtml += `<div style="padding: 5px; background: #f0f0f0; margin: 3px 0; border-radius: 4px;">
+                  <strong>${item.name}</strong> x${item.count}
+                  ${
+                    item.enchantments.length > 0
+                      ? " ✨ " +
+                        item.enchantments
+                          .map((e) => `${e.id} Lv${e.level}`)
+                          .join(", ")
+                      : ""
+                  }
+                </div>`;
+              });
+            }
+
+            inventoryHtml += "</div>";
+            resultsEl.innerHTML += inventoryHtml;
+          } else {
+            resultsEl.innerHTML = `<p style="color: orange;">⚠️ ${
+              data.error || "No inventory data found"
+            }</p>`;
+          }
+
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultsEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
+      }
+
+      async function getAllStatsWithInventory() {
+        const resultsEl = document.getElementById("inventoryResults");
+        const resultEl = document.getElementById("inventoryResult");
+
+        resultsEl.innerHTML = "<p>Loading all players with inventories...</p>";
+        resultEl.textContent = "";
+
+        try {
+          const response = await fetch(`${API_URL}/local/stats-with-inventory`);
+          const data = await response.json();
+
+          if (data.success && data.players.length > 0) {
+            resultsEl.innerHTML = `
+              <p style="color: green; font-weight: bold;">
+                ✅ Found ${data.playerCount} players with inventories!
+              </p>
+            `;
+
+            data.players.forEach((player) => {
+              const card = document.createElement("div");
+              card.style.cssText =
+                "background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0;";
+
+              let inventorySummary = "";
+              if (player.inventory && player.inventory.length > 0) {
+                const topItems = player.inventory.slice(0, 5);
+                inventorySummary = `<div style="margin-top: 10px; font-size: 12px; color: #555;">
+                  <strong>🎒 Inventory (${
+                    player.inventoryCount
+                  } items):</strong><br>
+                  ${topItems
+                    .map((item) => `${item.name} x${item.count}`)
+                    .join(", ")}
+                  ${player.inventory.length > 5 ? "..." : ""}
+                </div>`;
+              }
+
+              card.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 15px;">
+                  <img src="https://crafatar.com/avatars/${player.uuid}?size=48&overlay" 
+                       style="width: 48px; height: 48px; border-radius: 8px; image-rendering: pixelated;" 
+                       onerror="this.style.display='none'">
+                  <div style="flex: 1;">
+                    <div style="font-weight: bold; font-size: 16px;">${player.name}</div>
+                    <div style="font-size: 12px; color: #666; font-family: monospace;">${player.uuid}</div>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                      ⏱️ ${player.stats.playtime}min | 💀 ${player.stats.deaths} | ⚔️ ${player.stats.mobKills} | ⛏️ ${player.stats.blocksMined}
+                    </div>
+                    ${inventorySummary}
+                  </div>
+                </div>
+              `;
+              resultsEl.appendChild(card);
+            });
+          } else {
+            resultsEl.innerHTML = `<p style="color: orange;">⚠️ No player data found</p>`;
+          }
+
+          resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (error) {
+          resultsEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+        }
+      }
+    </script>
+  </body>
+</html>
