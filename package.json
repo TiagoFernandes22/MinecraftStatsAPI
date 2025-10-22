@@ -23,7 +23,9 @@
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
     "multer": "^2.0.2",
-    "prismarine-nbt": "^2.5.0"
+    "prismarine-nbt": "^2.5.0",
+    "prismarine-provider-anvil": "^2.11.0",
+    "prismarine-world": "^3.6.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

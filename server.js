@@ -15,16 +15,19 @@ try {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// Configurable local stats directory (where your world stats .json files live)
-const DEFAULT_STATS_DIR = path.join(__dirname, "uploads", "stats");
+// Configurable local directories (defaults point to uploads/worlds/MyWorld)
+const DEFAULT_WORLD_DIR = path.join(__dirname, "uploads", "worlds", "MyWorld");
+const WORLD_PATH = DEFAULT_WORLD_DIR; // Path to Minecraft world for map endpoint
+// Where your world's stats .json files live
+const DEFAULT_STATS_DIR = path.join(DEFAULT_WORLD_DIR, "stats");
 const STATS_DIR = process.env.STATS_DIR
   ? path.isAbsolute(process.env.STATS_DIR)
     ? process.env.STATS_DIR
     : path.join(__dirname, process.env.STATS_DIR)
   : DEFAULT_STATS_DIR;
 
-// Configurable playerdata directory (where your world playerdata .dat files live)
-const DEFAULT_PLAYERDATA_DIR = path.join(__dirname, "uploads", "playerdata");
+// Where your world's playerdata .dat files live
+const DEFAULT_PLAYERDATA_DIR = path.join(DEFAULT_WORLD_DIR, "playerdata");
 const PLAYERDATA_DIR = process.env.PLAYERDATA_DIR
   ? path.isAbsolute(process.env.PLAYERDATA_DIR)
     ? process.env.PLAYERDATA_DIR

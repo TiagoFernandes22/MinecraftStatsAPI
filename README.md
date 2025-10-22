@@ -35,10 +35,10 @@ Show API configuration including configured directories.
   "statsDir": "C:/path/to/stats",
   "statsDirExists": true,
   "statsFileCount": 4,
-  "defaultStatsDir": "<repo>/uploads/stats",
+  "defaultStatsDir": "<repo>/uploads/worlds/MyWorld/stats",
   "playerdataDir": "C:/path/to/playerdata",
   "playerdataDirExists": true,
-  "defaultPlayerdataDir": "<repo>/uploads/playerdata"
+  "defaultPlayerdataDir": "<repo>/uploads/worlds/MyWorld/playerdata"
 }
 ```
 
@@ -382,7 +382,7 @@ npm run dev
 
 If you prefer to keep your stats files locally and have the API read them on demand:
 
-1) Set the path to your stats in `.env` using `STATS_DIR` (examples below). If not set, the default is `<repo>/uploads/stats`.
+1) Set the path to your stats in `.env` using `STATS_DIR` (examples below). If not set, the default is `<repo>/uploads/worlds/MyWorld/stats`.
 2) Place or point to your Minecraft world's `stats` folder. Each file should be named `UUID.json`.
 3) Hit `GET /api/stats/all` to get all players, or `GET /api/stats/player/:uuid` for one player.
 
