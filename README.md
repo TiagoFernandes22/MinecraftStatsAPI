@@ -1,14 +1,14 @@
-# 🎮 Minecraft Stats API
+# Minecraft Stats API
 
 A Node.js/Express API server that processes Minecraft server stats files and provides player information including names, skins, and formatted statistics data.
 
 ## Features
 
-- 📤 **File Upload** - Accept stats JSON files via multipart/form-data
-- 👤 **Player Profiles** - Fetch player names and skins from Mojang API
-- 📊 **Stats Processing** - Parse and format all Minecraft statistics
-- 💾 **Caching** - Cache player profiles to reduce API calls
-- 🌐 **CORS Enabled** - Works with your Vue frontend
+- **File Upload** - Accept stats JSON files via multipart/form-data
+- **Player Profiles** - Fetch player names and skins from Mojang API
+- **Stats Processing** - Parse and format all Minecraft statistics
+- **Caching** - Cache player profiles to reduce API calls
+- **CORS Enabled** - Works with your Vue frontend
 
 ## API Endpoints
 

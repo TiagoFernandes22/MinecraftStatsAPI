@@ -737,7 +737,7 @@ app.get("/api/cache/stats", (req, res) => {
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Minecraft Stats API running on http://localhost:${PORT}`);
-  console.log(`📊 Upload endpoint: http://localhost:${PORT}/api/upload`);
-  console.log(`🔍 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`Minecraft Stats API running on http://localhost:${PORT}`);
+  console.log(`Upload endpoint: http://localhost:${PORT}/api/upload`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
