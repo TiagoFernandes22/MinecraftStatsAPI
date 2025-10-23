@@ -1031,16 +1031,27 @@ app.get("/api/local/stats", apiKeyMiddleware, async (req, res) => {
       return res.json({ success: true, playerCount: 0, players: [] });
     }
     const files = await listJsonFiles(targetDir);
-    const results = [];
-    for (const filename of files) {
-      try {
-        const result = await readPlayerStatsFromFile(targetDir, filename);
-        results.push(result);
-      } catch (error) {
-        console.error(`Error processing ${filename}:`, error);
-      }
-    }
-    res.json({ success: true, playerCount: results.length, players: results });
+
+    // PERFORMANCE IMPROVEMENT: Process all players in parallel
+    const results = await Promise.all(
+      files.map(async (filename) => {
+        try {
+          return await readPlayerStatsFromFile(targetDir, filename);
+        } catch (error) {
+          console.error(`Error processing ${filename}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null values (errors)
+    const filteredResults = results.filter((r) => r !== null);
+
+    res.json({
+      success: true,
+      playerCount: filteredResults.length,
+      players: filteredResults,
+    });
   } catch (error) {
     console.error("Local stats error:", error);
     res.status(500).json({ error: "Error processing local stats" });
@@ -1137,35 +1148,43 @@ app.get(
       }
 
       const files = await listJsonFiles(statsDir);
-      const results = [];
-      for (const filename of files) {
-        try {
-          const result = await readPlayerStatsFromFile(statsDir, filename);
 
-          // Skip hidden players
-          if (hiddenPlayers.includes(result.uuid)) {
-            continue;
+      // PERFORMANCE IMPROVEMENT: Process all players in parallel
+      const results = await Promise.all(
+        files.map(async (filename) => {
+          try {
+            const result = await readPlayerStatsFromFile(statsDir, filename);
+
+            // Skip hidden players
+            if (hiddenPlayers.includes(result.uuid)) {
+              return null;
+            }
+
+            // Add inventory data from user's playerdata directory
+            const inventoryData = await readPlayerInventory(
+              result.uuid,
+              playerdataDir
+            );
+            result.inventory = inventoryData.inventory.map((item) => ({
+              ...item,
+              name: formatItemName(item.id),
+            }));
+            result.inventoryCount = inventoryData.totalItems || 0;
+            return result;
+          } catch (error) {
+            console.error(`Error processing ${filename}:`, error);
+            return null;
           }
+        })
+      );
 
-          // Add inventory data from user's playerdata directory
-          const inventoryData = await readPlayerInventory(
-            result.uuid,
-            playerdataDir
-          );
-          result.inventory = inventoryData.inventory.map((item) => ({
-            ...item,
-            name: formatItemName(item.id),
-          }));
-          result.inventoryCount = inventoryData.totalItems || 0;
-          results.push(result);
-        } catch (error) {
-          console.error(`Error processing ${filename}:`, error);
-        }
-      }
+      // Filter out null values (errors and hidden players)
+      const filteredResults = results.filter((r) => r !== null);
+
       res.json({
         success: true,
-        playerCount: results.length,
-        players: results,
+        playerCount: filteredResults.length,
+        players: filteredResults,
       });
     } catch (error) {
       console.error("Local stats with inventory error:", error);
@@ -1330,29 +1349,37 @@ app.get("/api/players/all", apiKeyMiddleware, async (req, res) => {
     }
 
     const files = await listJsonFiles(statsDir);
-    const results = [];
-    for (const filename of files) {
-      try {
-        const result = await readPlayerStatsFromFile(statsDir, filename);
-        // Add inventory data
-        const inventoryData = await readPlayerInventory(
-          result.uuid,
-          playerdataDir
-        );
-        result.inventory = inventoryData.inventory.map((item) => ({
-          ...item,
-          name: formatItemName(item.id),
-        }));
-        result.inventoryCount = inventoryData.totalItems || 0;
-        results.push(result);
-      } catch (error) {
-        console.error(`Error processing ${filename}:`, error);
-      }
-    }
+
+    // PERFORMANCE IMPROVEMENT: Process all players in parallel
+    const results = await Promise.all(
+      files.map(async (filename) => {
+        try {
+          const result = await readPlayerStatsFromFile(statsDir, filename);
+          // Add inventory data
+          const inventoryData = await readPlayerInventory(
+            result.uuid,
+            playerdataDir
+          );
+          result.inventory = inventoryData.inventory.map((item) => ({
+            ...item,
+            name: formatItemName(item.id),
+          }));
+          result.inventoryCount = inventoryData.totalItems || 0;
+          return result;
+        } catch (error) {
+          console.error(`Error processing ${filename}:`, error);
+          return null;
+        }
+      })
+    );
+
+    // Filter out null values (errors)
+    const filteredResults = results.filter((r) => r !== null);
+
     res.json({
       success: true,
-      playerCount: results.length,
-      players: results,
+      playerCount: filteredResults.length,
+      players: filteredResults,
     });
   } catch (error) {
     console.error("Error fetching all players:", error);
