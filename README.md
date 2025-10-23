@@ -1,14 +1,47 @@
-# Minecraft Stats API
+# 🎮 Minecraft Stats API
 
-A Node.js/Express API server that processes Minecraft server stats files and provides player information including names, skins, and formatted statistics data.
+A production-ready Node.js/Express API server that processes Minecraft server stats files and provides player information including names, skins, and formatted statistics data.
 
 ## Features
 
-- **File Upload** - Accept stats JSON files via multipart/form-data
-- **Player Profiles** - Fetch player names and skins from Mojang API
-- **Stats Processing** - Parse and format all Minecraft statistics
-- **Caching** - Cache player profiles to reduce API calls
-- **CORS Enabled** - Works with your Vue frontend
+- 📤 **File Upload** - Accept stats JSON files and world zips via multipart/form-data
+- 👤 **Player Profiles** - Fetch player names and skins from Mojang API
+- 📊 **Stats Processing** - Parse and format all Minecraft statistics
+- 💾 **Caching** - Cache player profiles to reduce API calls
+- 🌐 **CORS Enabled** - Works with your Vue frontend
+- 🔐 **API Key Authentication** - Secure endpoints with Bearer token authentication
+- 👥 **Multi-User Support** - Each user gets isolated world storage
+- 🛡️ **Security Hardening** - Helmet, rate limiting, request logging, file size limits
+- 📦 **World Uploads** - Accept and extract full Minecraft world zip files
+- 💿 **Storage Quotas** - Per-user storage limits (500MB default)
+
+## Authentication & Security
+
+### API Keys
+Protected endpoints require an API key passed via the `Authorization` header:
+```
+Authorization: Bearer your-api-key-here
+```
+
+**Demo API Key** (from `data/users.json`):
+```
+demo-key-123456
+```
+
+### Protected Endpoints
+- `POST /api/upload` - Stats file upload
+- `POST /api/upload/world` - World zip upload
+- `POST /api/process-directory` - Directory processing
+- `POST /admin/users` - User creation (requires `ADMIN_KEY` env var)
+
+### Rate Limiting
+- Default: 120 requests per minute per IP
+- Configurable via express-rate-limit settings
+
+### Storage Quotas
+- Per-user storage: 500 MB default
+- Max files: 10,000 per user
+- Returns `413 Payload Too Large` when exceeded
 
 ## API Endpoints
 
@@ -22,6 +55,22 @@ Health check endpoint.
 {
   "status": "ok",
   "timestamp": "2025-10-18T12:00:00.000Z"
+}
+```
+
+#### `GET /api/me`
+Get current authenticated user information.
+
+**Headers:**
+```
+Authorization: Bearer your-api-key
+```
+
+**Response:**
+```json
+{
+  "userId": "demo-user",
+  "displayName": "Demo User"
 }
 ```
 
@@ -154,9 +203,16 @@ Get all players with both their statistics AND inventory data combined.
 ### Upload Endpoints
 
 #### `POST /api/upload`
-Upload and process stats files (temporary - files deleted after processing).
+Upload and process stats files. Files are stored in per-user isolated storage.
+
+**Authentication:** Required (API key)
 
 **Content-Type:** `multipart/form-data`
+
+**Headers:**
+```
+Authorization: Bearer your-api-key
+```
 
 **Body:**
 - `stats`: Array of JSON files (field name for multer)
@@ -172,22 +228,7 @@ Upload and process stats files (temporary - files deleted after processing).
       "name": "PlayerName",
       "skin": "https://textures.minecraft.net/texture/...",
       "cape": null,
-      "stats": {
-        "playtime": 1234,
-        "deaths": 10,
-        "mobKills": 500,
-        "playerKills": 5,
-        "blocksMined": 5000,
-        "jumps": 1000,
-        "distanceWalked": 50000,
-        "distanceSprinted": 20000,
-        "distanceFlown": 1000,
-        "damageTaken": 500,
-        "damageDealt": 1000,
-        "itemsEnchanted": 10,
-        "animalsBreed": 20,
-        "fishCaught": 15
-      },
+      "stats": { /* key stats */ },
       "dataVersion": 3465,
       "rawStats": { /* full stats object */ }
     }
@@ -195,29 +236,48 @@ Upload and process stats files (temporary - files deleted after processing).
 }
 ```
 
-### `POST /api/process-directory`
-Process stats from a local directory (useful for development).
+**Notes:**
+- Files are saved to `uploads/worlds/<userId>/stats/` before processing
+- Files are deleted after processing
+- Subject to per-user storage quotas (500MB default)
 
-**Body:**
-```json
-{
-  "directoryPath": "C:/path/to/minecraft/world/stats"
-}
-```
+#### `POST /api/upload/world`
+Upload and extract a complete Minecraft world zip file.
 
-#### `POST /api/upload`
-Upload and process stats files (temporary - files deleted after processing).
+**Authentication:** Required (API key)
 
 **Content-Type:** `multipart/form-data`
 
-**Body:**
-- `stats`: Array of JSON files (field name for multer)
+**Headers:**
+```
+Authorization: Bearer your-api-key
+```
 
-**Response:** Same as `GET /api/stats/all`
+**Body:**
+- `world`: A single ZIP file containing your Minecraft world
+
+**Response:**
+```json
+{
+  "success": true,
+  "userId": "demo-user",
+  "worldPath": "/path/to/uploads/worlds/demo-user",
+  "extractedFiles": 1234,
+  "message": "World uploaded and extracted successfully"
+}
+```
+
+**Notes:**
+- World must contain `region/` folder or `level.dat` file
+- Extracts to `uploads/worlds/<userId>/`
+- Maximum file size: 100 MB
+- Subject to per-user storage quotas
 
 #### `POST /api/process-directory`
 Process stats from any local directory path (useful for development).
 
+**Authentication:** Required (API key)
+
 **Body:**
 ```json
 {
@@ -225,7 +285,7 @@ Process stats from any local directory path (useful for development).
 }
 ```
 
-**Response:** Same as `GET /api/stats/all`
+**Response:** Same as `POST /api/upload`
 
 ### Mojang Profile Lookup
 
@@ -258,6 +318,43 @@ Get cache statistics.
 }
 ```
 
+### Admin Endpoints
+
+#### `POST /admin/users`
+Create a new user and generate an API key. Protected by `ADMIN_KEY` environment variable.
+
+**Authentication:** Required (Admin key)
+
+**Headers:**
+```
+Authorization: Bearer your-admin-key
+```
+
+**Body:**
+```json
+{
+  "userId": "new-user",
+  "displayName": "New User Display Name"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "userId": "new-user",
+  "apiKey": "generated-secure-key-here",
+  "displayName": "New User Display Name",
+  "message": "User created successfully. Save the API key securely."
+}
+```
+
+**Notes:**
+- Requires `ADMIN_KEY` environment variable to be set
+- Generated API key is a 64-character hex string (secure random)
+- User data is saved to `data/users.json`
+- API key is only shown once - save it securely
+
 ## Installation
 
 ```powershell
@@ -273,20 +370,315 @@ npm run dev
 
 ## Environment Variables
 
-Create a `.env` file (optional):
+Create a `.env` file:
 
 ```env
 PORT=3000
-"# Absolute or relative (to this repo) path to your world stats folder"
+# Optional: Comma-separated API keys for simple deployments
+API_KEYS=key1,key2,key3
+# Admin key for creating users via /admin/users endpoint
+ADMIN_KEY=your-secure-admin-key
+# Optional: Path to your world stats folder (defaults to uploads/worlds/MyWorld/stats)
 STATS_DIR=C:\\path\\to\\minecraft\\world\\stats
 ```
 
-## Usage with Vue Frontend
+## Quick Start with Authentication
 
-### 1. Basic File Upload
+### 1. Use the Demo API Key
+
+The server ships with a demo user in `data/users.json`:
+```json
+{
+  "userId": "demo-user",
+  "apiKey": "demo-key-123456",
+  "displayName": "Demo User"
+}
+```
+
+Test it:
+```powershell
+# Check authentication
+Invoke-RestMethod -Uri "http://localhost:3000/api/me" -Headers @{ Authorization = "Bearer demo-key-123456" }
+
+# Upload stats
+$headers = @{ Authorization = "Bearer demo-key-123456" }
+# (add your multipart form data upload here)
+```
+
+### 2. Create New Users (Admin)
+
+Set `ADMIN_KEY` in `.env`, then:
+```powershell
+$headers = @{
+  "Authorization" = "Bearer your-admin-key"
+  "Content-Type" = "application/json"
+}
+$body = @{
+  userId = "alice"
+  displayName = "Alice"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3000/admin/users" -Method Post -Headers $headers -Body $body
+```
+
+Save the returned API key securely!
+
+## Testing with Postman
+
+### Setup Authentication
+
+1. **Open Postman** and create a new request
+2. **Set Authorization:**
+   - Go to the **Authorization** tab
+   - Type: Select **Bearer Token**
+   - Token: Enter `demo-key-123456`
+
+OR manually add header:
+- Key: `Authorization`
+- Value: `Bearer demo-key-123456`
+
+### Test Endpoints
+
+#### 1. Health Check (No Auth Required)
+```
+GET http://localhost:3000/api/health
+```
+- **Method:** GET
+- **Auth:** None
+- **Expected:** `{ "status": "ok", "timestamp": "..." }`
+
+#### 2. Check Current User
+```
+GET http://localhost:3000/api/me
+```
+- **Method:** GET
+- **Auth:** Bearer Token (use `demo-key-123456`)
+- **Expected:** 
+```json
+{
+  "userId": "demo-user",
+  "displayName": "Demo User"
+}
+```
+
+#### 3. Get Config
+```
+GET http://localhost:3000/api/config
+```
+- **Method:** GET
+- **Auth:** None
+- **Expected:** Server configuration with directory paths
+
+#### 4. Upload Stats Files
+```
+POST http://localhost:3000/api/upload
+```
+- **Method:** POST
+- **Auth:** Bearer Token (use `demo-key-123456`)
+- **Body:** 
+  - Type: **form-data**
+  - Key: `stats` (change type to **File**)
+  - Value: Select one or more `.json` stats files
+- **Expected:** Parsed player stats with names and skins
+
+**Note:** Stats files should be UUID.json format from Minecraft's stats folder
+
+#### 5. Upload World Zip
+```
+POST http://localhost:3000/api/upload/world
+```
+- **Method:** POST
+- **Auth:** Bearer Token (use `demo-key-123456`)
+- **Body:**
+  - Type: **form-data**
+  - Key: `world` (change type to **File**)
+  - Value: Select a `.zip` file containing your Minecraft world
+- **Expected:**
+```json
+{
+  "success": true,
+  "userId": "demo-user",
+  "worldPath": "...",
+  "extractedFiles": 1234,
+  "message": "World uploaded and extracted successfully"
+}
+```
+
+**Note:** Zip must contain `region/` folder or `level.dat` file
+
+#### 6. Create New User (Admin)
+```
+POST http://localhost:3000/admin/users
+```
+- **Method:** POST
+- **Auth:** Bearer Token (use your `ADMIN_KEY` from .env)
+- **Headers:**
+  - Key: `Content-Type`
+  - Value: `application/json`
+- **Body:** (raw JSON)
+```json
+{
+  "userId": "alice",
+  "displayName": "Alice"
+}
+```
+- **Expected:**
+```json
+{
+  "success": true,
+  "userId": "alice",
+  "apiKey": "generated-key-here",
+  "displayName": "Alice",
+  "message": "User created successfully. Save the API key securely."
+}
+```
+
+**Note:** Requires `ADMIN_KEY` environment variable to be set
+
+#### 7. Get Local Stats
+```
+GET http://localhost:3000/api/local/stats
+```
+- **Method:** GET
+- **Auth:** None (reads from configured STATS_DIR)
+- **Expected:** All players from local stats directory with parsed data
+
+#### 8. Get Player Inventory
+```
+GET http://localhost:3000/api/local/inventory/:uuid
+```
+- **Method:** GET
+- **Auth:** None
+- **URL:** Replace `:uuid` with actual player UUID
+- **Example:** `http://localhost:3000/api/local/inventory/12345678-1234-1234-1234-123456789abc`
+- **Expected:** Player's inventory with items and enchantments
+
+#### 9. Clear Cache
+```
+POST http://localhost:3000/api/cache/clear
+```
+- **Method:** POST
+- **Auth:** None
+- **Expected:** `{ "success": true, "message": "Cache cleared" }`
+
+### Common Errors
+
+**401 Unauthorized:**
+```json
+{
+  "error": "Unauthorized - missing or invalid API key"
+}
+```
+- Solution: Check Authorization header is set correctly
+
+**413 Payload Too Large:**
+```json
+{
+  "error": "Storage quota exceeded",
+  "currentSize": 524288000,
+  "maxSize": 524288000
+}
+```
+- Solution: User has reached storage quota (500MB default)
+
+**400 Bad Request (World Upload):**
+```json
+{
+  "error": "Invalid world zip: missing region/ folder or level.dat"
+}
+```
+- Solution: Ensure zip contains valid Minecraft world structure
+
+### Postman Collection (Import This)
+
+Create a new collection and import these as JSON:
+
+```json
+{
+  "info": {
+    "name": "Minecraft Stats API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "demo-key-123456",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/health"
+      }
+    },
+    {
+      "name": "Get Current User",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:3000/api/me",
+        "auth": {
+          "type": "inherit"
+        }
+      }
+    },
+    {
+      "name": "Upload Stats",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/upload",
+        "auth": {
+          "type": "inherit"
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "stats",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Upload World Zip",
+      "request": {
+        "method": "POST",
+        "url": "http://localhost:3000/api/upload/world",
+        "auth": {
+          "type": "inherit"
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "world",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
+```
+
+Save this as `MinecraftStatsAPI.postman_collection.json` and import into Postman.
+
+## Usage Examples
+
+### 1. Upload Stats with Authentication
 
 ```javascript
-async function uploadStats(files) {
+async function uploadStats(files, apiKey) {
   const formData = new FormData();
   
   for (const file of files) {
@@ -295,6 +687,9 @@ async function uploadStats(files) {
   
   const response = await fetch('http://localhost:3000/api/upload', {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    },
     body: formData
   });
   
@@ -303,20 +698,36 @@ async function uploadStats(files) {
 }
 ```
 
-### 2. Process Local Directory
+### 2. Upload World Zip
 
 ```javascript
-async function processDirectory(path) {
-  const response = await fetch('http://localhost:3000/api/process-directory', {
+async function uploadWorld(zipFile, apiKey) {
+  const formData = new FormData();
+  formData.append('world', zipFile);
+  
+  const response = await fetch('http://localhost:3000/api/upload/world', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Authorization': `Bearer ${apiKey}`
     },
-    body: JSON.stringify({ directoryPath: path })
+    body: formData
   });
   
-  const data = await response.json();
-  return data.players;
+  return await response.json();
+}
+```
+
+### 3. Check Current User
+
+```javascript
+async function getCurrentUser(apiKey) {
+  const response = await fetch('http://localhost:3000/api/me', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`
+    }
+  });
+  
+  return await response.json();
 }
 ```
 
@@ -355,14 +766,39 @@ The API fetches player names and skins from the Mojang Session API:
 - Failed Mojang API requests fall back to shortened UUID
 - Detailed error logging to console
 
+## Per-User World Isolation
+
+Each authenticated user gets their own isolated world storage:
+
+- **Storage Location:** `uploads/worlds/<userId>/`
+- **Stats:** `uploads/worlds/<userId>/stats/`
+- **Playerdata:** `uploads/worlds/<userId>/playerdata/`
+- **World Files:** Region files, level.dat extracted to user folder
+
+**How it Works:**
+1. User authenticates with API key
+2. Server maps API key → userId
+3. All uploads/reads use that user's folder
+4. Users cannot access other users' data
+
+**Quotas:**
+- Storage: 500 MB per user (configurable)
+- Files: 10,000 max per user
+- Uploads return `413` when quota exceeded
+
 ## Dependencies
 
 - **express** - Web server framework
 - **cors** - Enable CORS
 - **multer** - File upload handling
 - **axios** - HTTP requests to Mojang API
-- **dotenv** - Environment variables (STATS_DIR)
+- **dotenv** - Environment variables
 - **prismarine-nbt** - NBT file parsing for inventory data
+- **helmet** - Security headers
+- **express-rate-limit** - Rate limiting
+- **morgan** - Request logging
+- **express-validator** - Request validation
+- **adm-zip** - World zip extraction
 
 ## Development
 
@@ -371,12 +807,28 @@ The API fetches player names and skins from the Mojang Session API:
 npm run dev
 ```
 
-## Security Notes
+## Security Features
 
-- File uploads are limited to JSON files
-- Uploaded files are deleted after processing
-- Consider adding rate limiting for production
-- Add authentication for production use
+### Implemented
+- ✅ API key authentication (Bearer tokens)
+- ✅ Rate limiting (120 req/min per IP)
+- ✅ Helmet security headers
+- ✅ Request logging (morgan)
+- ✅ File size limits (5MB stats, 100MB worlds)
+- ✅ Per-user storage quotas
+- ✅ Isolated user storage (no cross-user access)
+- ✅ World zip validation (checks for region/ or level.dat)
+- ✅ Filename sanitization
+
+### Production Recommendations
+- Use HTTPS (terminate TLS at reverse proxy or use certificates)
+- Store `data/users.json` securely with proper file permissions
+- Set strong `ADMIN_KEY` and rotate regularly
+- Consider migrating to database (SQLite/Postgres) for user management
+- Move uploads to S3 or persistent storage with backups
+- Add monitoring and error tracking (Sentry)
+- Implement user registration flow with email verification
+- Add tests and CI/CD pipeline
 
 ## Local Stats Mode
 

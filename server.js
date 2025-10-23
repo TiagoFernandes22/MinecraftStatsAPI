@@ -17,7 +17,6 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 // Configurable local directories (defaults point to uploads/worlds/MyWorld)
 const DEFAULT_WORLD_DIR = path.join(__dirname, "uploads", "worlds", "MyWorld");
-const WORLD_PATH = DEFAULT_WORLD_DIR; // Path to Minecraft world for map endpoint
 // Where your world's stats .json files live
 const DEFAULT_STATS_DIR = path.join(DEFAULT_WORLD_DIR, "stats");
 const STATS_DIR = process.env.STATS_DIR
@@ -38,6 +37,35 @@ const PLAYERDATA_DIR = process.env.PLAYERDATA_DIR
 app.use(cors());
 app.use(express.json());
 
+// Security & logging middlewares (quick production hardening)
+try {
+  const helmet = require("helmet");
+  const morgan = require("morgan");
+  const rateLimit = require("express-rate-limit");
+
+  app.use(helmet());
+
+  // Basic request logging
+  app.use(morgan("combined"));
+
+  // Basic rate limiting - safe defaults, tune for your deployment
+  const limiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 120, // limit each IP to 120 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Apply to all requests
+  app.use(limiter);
+} catch (e) {
+  // If optional dependencies not installed, continue without them
+  console.warn(
+    "Optional security/logging middleware not available:",
+    e.message
+  );
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -54,8 +82,10 @@ const storage = multer.diskStorage({
   },
 });
 
+// Limit upload size to avoid large file DoS. Adjust as needed.
 const upload = multer({
   storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
   fileFilter: (req, file, cb) => {
     if (file.originalname.endsWith(".json")) {
       cb(null, true);
@@ -64,6 +94,149 @@ const upload = multer({
     }
   },
 });
+
+// Separate multer config for world zip uploads (larger file size)
+const uploadZip = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100 MB for world zips
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.endsWith(".zip")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only ZIP files are allowed"));
+    }
+  },
+});
+
+// Simple API key middleware: set API_KEYS env var to comma-separated keys
+// Load users mapping from data/users.json (optional)
+let usersList = [];
+async function loadUsers() {
+  try {
+    const usersJson = await fs.readFile(
+      path.join(__dirname, "data", "users.json"),
+      "utf8"
+    );
+    const parsed = JSON.parse(usersJson);
+    usersList = parsed.users || [];
+  } catch (e) {
+    // ignore if file doesn't exist
+    usersList = [];
+  }
+}
+
+// Immediately load users (fire-and-forget)
+loadUsers();
+
+// Quota helper: check user storage size (simple file-based quota)
+async function checkUserQuota(userId) {
+  const userDir = path.join(__dirname, "uploads", "worlds", userId);
+  const maxSize = 500 * 1024 * 1024; // 500 MB default quota
+  const maxFiles = 10000; // max file count
+
+  try {
+    const exists = await directoryExists(userDir);
+    if (!exists) return { ok: true, size: 0, fileCount: 0 };
+
+    // Recursively calculate directory size
+    async function getDirSize(dir) {
+      let size = 0;
+      let fileCount = 0;
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          const sub = await getDirSize(fullPath);
+          size += sub.size;
+          fileCount += sub.fileCount;
+        } else {
+          const stat = await fs.stat(fullPath);
+          size += stat.size;
+          fileCount++;
+        }
+      }
+      return { size, fileCount };
+    }
+
+    const { size, fileCount } = await getDirSize(userDir);
+    if (size > maxSize) {
+      return {
+        ok: false,
+        reason: "Storage quota exceeded",
+        size,
+        maxSize,
+        fileCount,
+      };
+    }
+    if (fileCount > maxFiles) {
+      return {
+        ok: false,
+        reason: "File count limit exceeded",
+        size,
+        fileCount,
+        maxFiles,
+      };
+    }
+    return { ok: true, size, fileCount };
+  } catch (error) {
+    console.error("Error checking quota:", error);
+    return { ok: true, size: 0, fileCount: 0 }; // fail open
+  }
+}
+
+function apiKeyMiddleware(req, res, next) {
+  const auth = req.header("authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : auth;
+
+  // Check if we have explicit API_KEYS env var configured
+  const apiKeys = (process.env.API_KEYS || "")
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+
+  // If API_KEYS env var is set, use it (overrides users.json)
+  if (apiKeys.length > 0) {
+    if (!token) {
+      return res.status(401).json({ error: "Unauthorized - missing API key" });
+    }
+    if (apiKeys.includes(token)) {
+      // For env-based keys, use the key itself as userId (not ideal but simple)
+      req.user = { userId: token, displayName: "api-key-user" };
+      return next();
+    }
+    return res.status(401).json({ error: "Unauthorized - invalid API key" });
+  }
+
+  // Otherwise, use data/users.json for authentication
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized - missing API key" });
+  }
+
+  // Find user by API key in users.json
+  const matched = usersList.find((u) => u.apiKey === token);
+  if (!matched) {
+    return res.status(401).json({ error: "Unauthorized - invalid API key" });
+  }
+
+  // Attach the actual userId from users.json
+  req.user = { userId: matched.userId, displayName: matched.displayName };
+  next();
+}
+
+// Apply API key middleware to write endpoints (uploads, process) - adjust routes as needed later
+app.use(["/api/upload", "/api/process-directory"], apiKeyMiddleware);
+
+// Helper: resolve user-specific world paths based on authentication
+function getUserWorldPaths(req) {
+  const userId = req.user && req.user.userId ? req.user.userId : "default";
+  const userWorldDir = path.join(__dirname, "uploads", "worlds", userId);
+  console.log(`Resolved world paths for user ${userId}: ${userWorldDir}`);
+  return {
+    worldDir: userWorldDir,
+    statsDir: path.join(userWorldDir, "stats"),
+    playerdataDir: path.join(userWorldDir, "playerdata"),
+  };
+}
 
 // Cache for player data
 const playerCache = new Map();
@@ -222,9 +395,10 @@ async function readPlayerStatsFromFile(dirPath, filename) {
 }
 
 // ---------- Inventory parsing functions ----------
-async function readPlayerInventory(uuid) {
+async function readPlayerInventory(uuid, customPlayerdataDir = null) {
   try {
-    const exists = await directoryExists(PLAYERDATA_DIR);
+    const targetDir = customPlayerdataDir || PLAYERDATA_DIR;
+    const exists = await directoryExists(targetDir);
     if (!exists) {
       return { error: "Playerdata directory not found", inventory: [] };
     }
@@ -234,7 +408,7 @@ async function readPlayerInventory(uuid) {
     let datFile = null;
 
     for (const candidate of candidates) {
-      const filePath = path.join(PLAYERDATA_DIR, candidate);
+      const filePath = path.join(targetDir, candidate);
       try {
         await fs.access(filePath);
         datFile = filePath;
@@ -426,6 +600,19 @@ app.get("/api/health", (req, res) => {
 });
 
 /**
+ * Get current authenticated user info
+ */
+app.get("/api/me", apiKeyMiddleware, (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+  res.json({
+    userId: req.user.userId,
+    displayName: req.user.displayName,
+  });
+});
+
+/**
  * API configuration and local directory status
  */
 app.get("/api/config", async (req, res) => {
@@ -459,14 +646,42 @@ app.post("/api/upload", upload.array("stats", 100), async (req, res) => {
 
     const results = [];
 
+    // Resolve user folder (if req.user set by middleware)
+    const userId = req.user && req.user.userId ? req.user.userId : "default";
+
+    // Check user quota before processing
+    const quota = await checkUserQuota(userId);
+    if (!quota.ok) {
+      return res.status(413).json({
+        error: quota.reason,
+        currentSize: quota.size,
+        maxSize: quota.maxSize,
+        fileCount: quota.fileCount,
+      });
+    }
+
+    const userStatsDir = path.join(
+      __dirname,
+      "uploads",
+      "worlds",
+      userId,
+      "stats"
+    );
+    await fs.mkdir(userStatsDir, { recursive: true });
+
     for (const file of req.files) {
       try {
-        // Read and parse JSON
-        const content = await fs.readFile(file.path, "utf-8");
+        // Move uploaded file to user-scoped folder before processing
+        const safeName = path.basename(file.originalname);
+        const destPath = path.join(userStatsDir, safeName);
+        await fs.rename(file.path, destPath);
+
+        // Read and parse JSON from user-scoped path
+        const content = await fs.readFile(destPath, "utf-8");
         const statsData = JSON.parse(content);
 
         // Extract UUID from filename
-        const uuid = path.basename(file.filename, ".json");
+        const uuid = path.basename(safeName, ".json");
 
         // Parse stats
         const playerStats = parsePlayerStats(statsData);
@@ -485,8 +700,8 @@ app.post("/api/upload", upload.array("stats", 100), async (req, res) => {
           rawStats: playerStats.stats, // Include full stats for detailed analysis
         });
 
-        // Clean up uploaded file
-        await fs.unlink(file.path);
+        // Clean up uploaded file from user folder
+        await fs.unlink(destPath);
       } catch (error) {
         console.error(`Error processing ${file.filename}:`, error);
       }
@@ -557,11 +772,93 @@ app.post("/api/process-directory", async (req, res) => {
 });
 
 /**
- * List local stats files from configured STATS_DIR
+ * Upload and extract a Minecraft world zip file
+ * Requires authentication
  */
-app.get("/api/local/files", async (req, res) => {
+app.post("/api/upload/world", uploadZip.single("world"), async (req, res) => {
   try {
-    const exists = await directoryExists(STATS_DIR);
+    if (!req.file) {
+      return res.status(400).json({ error: "No world zip file uploaded" });
+    }
+
+    if (!req.user) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const userId = req.user.userId;
+
+    // Check user quota before extracting
+    const quota = await checkUserQuota(userId);
+    if (!quota.ok) {
+      await fs.unlink(req.file.path);
+      return res.status(413).json({
+        error: quota.reason,
+        currentSize: quota.size,
+        maxSize: quota.maxSize,
+        fileCount: quota.fileCount,
+      });
+    }
+
+    const userWorldDir = path.join(__dirname, "uploads", "worlds", userId);
+
+    // Extract the zip
+    const AdmZip = require("adm-zip");
+    const zip = new AdmZip(req.file.path);
+
+    // Validate world structure: check for essential folders/files
+    const entries = zip.getEntries();
+    const hasRegion = entries.some((e) => e.entryName.includes("region/"));
+    const hasLevelDat = entries.some((e) => e.entryName.endsWith("level.dat"));
+
+    if (!hasRegion && !hasLevelDat) {
+      await fs.unlink(req.file.path);
+      return res.status(400).json({
+        error: "Invalid world zip: missing region/ folder or level.dat",
+        hint: "Make sure the zip contains a valid Minecraft world structure",
+      });
+    }
+
+    // Extract to user's world folder
+    await fs.mkdir(userWorldDir, { recursive: true });
+    zip.extractAllTo(userWorldDir, true);
+
+    // Clean up uploaded zip
+    await fs.unlink(req.file.path);
+
+    // Count extracted files
+    const extractedEntries = entries.length;
+
+    res.json({
+      success: true,
+      userId,
+      worldPath: userWorldDir,
+      extractedFiles: extractedEntries,
+      message: "World uploaded and extracted successfully",
+    });
+  } catch (error) {
+    console.error("World upload error:", error);
+    // Clean up uploaded file on error
+    if (req.file) {
+      try {
+        await fs.unlink(req.file.path);
+      } catch (e) {}
+    }
+    res
+      .status(500)
+      .json({ error: "Error uploading world", details: error.message });
+  }
+});
+
+/**
+ * List local stats files from configured STATS_DIR or user's stats directory
+ */
+app.get("/api/local/files", apiKeyMiddleware, async (req, res) => {
+  try {
+    // Use user-specific stats directory if authenticated
+    const { statsDir } = getUserWorldPaths(req);
+    const targetDir = statsDir;
+
+    const exists = await directoryExists(targetDir);
     if (!exists) {
       return res.json({
         success: true,
@@ -569,11 +866,11 @@ app.get("/api/local/files", async (req, res) => {
         message: "Stats directory does not exist",
       });
     }
-    const files = await listJsonFiles(STATS_DIR);
+    const files = await listJsonFiles(targetDir);
     // include file metadata
     const detailed = await Promise.all(
       files.map(async (name) => {
-        const full = path.join(STATS_DIR, name);
+        const full = path.join(targetDir, name);
         const stat = await fs.stat(full);
         return {
           filename: name,
@@ -591,19 +888,23 @@ app.get("/api/local/files", async (req, res) => {
 });
 
 /**
- * Process all local stats files from STATS_DIR
+ * Process all local stats files from user's stats directory
  */
-app.get("/api/local/stats", async (req, res) => {
+app.get("/api/local/stats", apiKeyMiddleware, async (req, res) => {
   try {
-    const exists = await directoryExists(STATS_DIR);
+    // Use user-specific stats directory if authenticated
+    const { statsDir } = getUserWorldPaths(req);
+    const targetDir = statsDir;
+
+    const exists = await directoryExists(targetDir);
     if (!exists) {
       return res.json({ success: true, playerCount: 0, players: [] });
     }
-    const files = await listJsonFiles(STATS_DIR);
+    const files = await listJsonFiles(targetDir);
     const results = [];
     for (const filename of files) {
       try {
-        const result = await readPlayerStatsFromFile(STATS_DIR, filename);
+        const result = await readPlayerStatsFromFile(targetDir, filename);
         results.push(result);
       } catch (error) {
         console.error(`Error processing ${filename}:`, error);
@@ -617,23 +918,27 @@ app.get("/api/local/stats", async (req, res) => {
 });
 
 /**
- * Get single player's stats from STATS_DIR by UUID
+ * Get single player's stats from user's stats directory by UUID
  */
-app.get("/api/local/player/:uuid", async (req, res) => {
+app.get("/api/local/player/:uuid", apiKeyMiddleware, async (req, res) => {
   try {
     const { uuid } = req.params;
-    const exists = await directoryExists(STATS_DIR);
+    // Use user-specific stats directory if authenticated
+    const { statsDir } = getUserWorldPaths(req);
+    const targetDir = statsDir;
+
+    const exists = await directoryExists(targetDir);
     if (!exists) {
       return res.status(404).json({ error: "Stats directory not found" });
     }
     // Accept filenames with or without dashes; try both
     const candidates = [`${uuid}.json`, `${uuid.replace(/-/g, "")}.json`];
-    const files = await listJsonFiles(STATS_DIR);
+    const files = await listJsonFiles(targetDir);
     const match = candidates.find((c) => files.includes(c));
     if (!match) {
       return res.status(404).json({ error: "Player stats file not found" });
     }
-    const result = await readPlayerStatsFromFile(STATS_DIR, match);
+    const result = await readPlayerStatsFromFile(targetDir, match);
     res.json(result);
   } catch (error) {
     console.error("Local player error:", error);
@@ -642,12 +947,14 @@ app.get("/api/local/player/:uuid", async (req, res) => {
 });
 
 /**
- * Get player inventory from PLAYERDATA_DIR by UUID
+ * Get player inventory from user's playerdata directory by UUID
  */
-app.get("/api/local/inventory/:uuid", async (req, res) => {
+app.get("/api/local/inventory/:uuid", apiKeyMiddleware, async (req, res) => {
   try {
     const { uuid } = req.params;
-    const inventoryData = await readPlayerInventory(uuid);
+    // Use user-specific playerdata directory if authenticated
+    const { playerdataDir } = getUserWorldPaths(req);
+    const inventoryData = await readPlayerInventory(uuid, playerdataDir);
 
     if (inventoryData.error && inventoryData.inventory.length === 0) {
       return res.status(404).json(inventoryData);
@@ -672,37 +979,51 @@ app.get("/api/local/inventory/:uuid", async (req, res) => {
 });
 
 /**
- * Get all local stats WITH inventory data included
+ * Get all local stats WITH inventory data included from user's directories
  */
-app.get("/api/local/stats-with-inventory", async (req, res) => {
-  try {
-    const exists = await directoryExists(STATS_DIR);
-    if (!exists) {
-      return res.json({ success: true, playerCount: 0, players: [] });
-    }
-    const files = await listJsonFiles(STATS_DIR);
-    const results = [];
-    for (const filename of files) {
-      try {
-        const result = await readPlayerStatsFromFile(STATS_DIR, filename);
-        // Add inventory data
-        const inventoryData = await readPlayerInventory(result.uuid);
-        result.inventory = inventoryData.inventory.map((item) => ({
-          ...item,
-          name: formatItemName(item.id),
-        }));
-        result.inventoryCount = inventoryData.totalItems || 0;
-        results.push(result);
-      } catch (error) {
-        console.error(`Error processing ${filename}:`, error);
+app.get(
+  "/api/local/stats-with-inventory",
+  apiKeyMiddleware,
+  async (req, res) => {
+    try {
+      // Use user-specific directories if authenticated
+      const { statsDir, playerdataDir } = getUserWorldPaths(req);
+
+      const exists = await directoryExists(statsDir);
+      if (!exists) {
+        return res.json({ success: true, playerCount: 0, players: [] });
       }
+      const files = await listJsonFiles(statsDir);
+      const results = [];
+      for (const filename of files) {
+        try {
+          const result = await readPlayerStatsFromFile(statsDir, filename);
+          // Add inventory data from user's playerdata directory
+          const inventoryData = await readPlayerInventory(
+            result.uuid,
+            playerdataDir
+          );
+          result.inventory = inventoryData.inventory.map((item) => ({
+            ...item,
+            name: formatItemName(item.id),
+          }));
+          result.inventoryCount = inventoryData.totalItems || 0;
+          results.push(result);
+        } catch (error) {
+          console.error(`Error processing ${filename}:`, error);
+        }
+      }
+      res.json({
+        success: true,
+        playerCount: results.length,
+        players: results,
+      });
+    } catch (error) {
+      console.error("Local stats with inventory error:", error);
+      res.status(500).json({ error: "Error processing local stats" });
     }
-    res.json({ success: true, playerCount: results.length, players: results });
-  } catch (error) {
-    console.error("Local stats with inventory error:", error);
-    res.status(500).json({ error: "Error processing local stats" });
   }
-});
+);
 
 /**
  * Get player profile by UUID
@@ -733,6 +1054,76 @@ app.get("/api/cache/stats", (req, res) => {
     size: playerCache.size,
     players: Array.from(playerCache.keys()),
   });
+});
+
+/**
+ * Admin: Create a new user and generate API key
+ * Requires ADMIN_KEY env var
+ */
+app.post("/admin/users", async (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey) {
+    return res
+      .status(503)
+      .json({ error: "Admin endpoint not configured (ADMIN_KEY missing)" });
+  }
+
+  const auth = req.header("authorization") || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : auth;
+  if (token !== adminKey) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const { userId, displayName } = req.body;
+  if (!userId || !displayName) {
+    return res.status(400).json({ error: "userId and displayName required" });
+  }
+
+  // Generate a secure random API key
+  const crypto = require("crypto");
+  const apiKey = crypto.randomBytes(32).toString("hex");
+
+  try {
+    // Load current users
+    const usersPath = path.join(__dirname, "data", "users.json");
+    let usersData = { users: [] };
+    try {
+      const content = await fs.readFile(usersPath, "utf8");
+      usersData = JSON.parse(content);
+    } catch (e) {
+      // File doesn't exist yet
+    }
+
+    // Check if userId already exists
+    if (usersData.users.find((u) => u.userId === userId)) {
+      return res.status(409).json({ error: "userId already exists" });
+    }
+
+    // Add new user
+    usersData.users.push({
+      userId,
+      apiKey,
+      displayName,
+      createdAt: new Date().toISOString(),
+    });
+
+    // Write back to file
+    await fs.writeFile(usersPath, JSON.stringify(usersData, null, 2), "utf8");
+
+    // Reload users in memory
+    await loadUsers();
+
+    res.json({
+      success: true,
+      userId,
+      apiKey,
+      displayName,
+      message: "User created successfully. Save the API key securely.",
+    });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({ error: "Failed to create user" });
+  }
 });
 
 // Start server

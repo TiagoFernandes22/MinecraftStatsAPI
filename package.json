@@ -22,10 +22,16 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",
+    "express-rate-limit": "^7.0.0",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
     "multer": "^2.0.2",
+    "pino": "^10.1.0",
     "prismarine-nbt": "^2.5.0",
     "prismarine-provider-anvil": "^2.11.0",
-    "prismarine-world": "^3.6.3"
+    "prismarine-world": "^3.6.3",
+    "adm-zip": "^0.5.10"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
