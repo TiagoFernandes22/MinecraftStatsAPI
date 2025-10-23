@@ -1,0 +1,10 @@
+{
+  "users": [
+    {
+      "userId": "demo-user",
+      "apiKey": "demo-key-123456",
+      "displayName": "Demo User",
+      "createdAt": "2025-10-22T00:00:00.000Z"
+    }
+  ]
+}

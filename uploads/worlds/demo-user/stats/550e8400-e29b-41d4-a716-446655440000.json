@@ -1,0 +1,35 @@
+{
+  "stats": {
+    "minecraft:custom": {
+      "minecraft:play_time": 72000,
+      "minecraft:deaths": 5,
+      "minecraft:mob_kills": 150,
+      "minecraft:player_kills": 2,
+      "minecraft:jump": 2500,
+      "minecraft:walk_one_cm": 5000000,
+      "minecraft:sprint_one_cm": 2000000,
+      "minecraft:fly_one_cm": 100000,
+      "minecraft:damage_taken": 1500,
+      "minecraft:damage_dealt": 3000,
+      "minecraft:enchant_item": 15,
+      "minecraft:animals_bred": 25,
+      "minecraft:fish_caught": 30
+    },
+    "minecraft:mined": {
+      "minecraft:stone": 5000,
+      "minecraft:dirt": 2000,
+      "minecraft:diamond_ore": 45,
+      "minecraft:iron_ore": 250,
+      "minecraft:coal_ore": 500,
+      "minecraft:oak_log": 800
+    },
+    "minecraft:killed": {
+      "minecraft:zombie": 50,
+      "minecraft:skeleton": 40,
+      "minecraft:creeper": 30,
+      "minecraft:spider": 20,
+      "minecraft:enderman": 10
+    }
+  },
+  "DataVersion": 3465
+}

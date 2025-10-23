@@ -1,5 +1,17 @@
 node_modules/
-uploads/
 .env
 *.log
 .DS_Store
+
+# Ignore all world uploads
+uploads/worlds/*
+
+# But allow demo-user world
+!uploads/worlds/demo-user/
+!uploads/worlds/demo-user/**
+
+# Ignore users.json (contains real API keys)
+data/users.json
+
+# But track demo users file
+!data/users.demo.json
