@@ -40,6 +40,7 @@ class PlayerService {
         skin: profile?.skin || null,
         cape: profile?.cape || null,
         stats: statsData?.stats || {},
+        rawStats: statsData?.rawStats || {},
         totalItems: inventoryData.totalItems,
         inventory: inventoryData.inventory,
       };
