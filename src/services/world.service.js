@@ -93,7 +93,7 @@ class WorldService {
    * Get world info
    */
   async getWorldInfo(username) {
-    const userWorldDir = path.join(PATHS.UPLOADS_DIR, "worlds", username);
+    const userWorldDir = path.join(PATHS.UPLOADS_DIR, username);
 
     try {
       await fs.access(userWorldDir);

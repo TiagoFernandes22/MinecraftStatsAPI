@@ -10,9 +10,9 @@ describe("Cache Endpoints", () => {
     const adminResponse = await request(app)
       .post("/admin/users")
       .set("x-admin-key", process.env.ADMIN_KEY)
-      .send({ username: "test-cache-user" });
+      .send({ userId: "test-cache-user", displayName: "Test Cache User" });
 
-    apiKey = adminResponse.body.apiKey;
+    apiKey = adminResponse.body.user.apiKey;
   });
 
   beforeEach(() => {

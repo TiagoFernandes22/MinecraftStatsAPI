@@ -5,22 +5,22 @@ const path = require("path");
 
 describe("World Endpoints", () => {
   let apiKey;
-  let username;
+  let userId;
 
   beforeAll(async () => {
     // Create a test user
     const adminResponse = await request(app)
       .post("/admin/users")
       .set("x-admin-key", process.env.ADMIN_KEY)
-      .send({ username: "test-world-user" });
+      .send({ userId: "test-world-user", displayName: "Test World User" });
 
-    apiKey = adminResponse.body.apiKey;
-    username = adminResponse.body.username;
+    apiKey = adminResponse.body.user.apiKey;
+    userId = adminResponse.body.user.userId;
   });
 
   afterAll(async () => {
     // Clean up test data
-    const worldDir = path.join(__dirname, "../../uploads/worlds", username);
+    const worldDir = path.join(__dirname, "../../uploads/worlds", userId);
     try {
       await fs.rm(worldDir, { recursive: true, force: true });
     } catch (error) {

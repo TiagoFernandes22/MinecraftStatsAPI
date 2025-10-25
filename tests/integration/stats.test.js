@@ -5,23 +5,23 @@ const path = require("path");
 
 describe("Stats Endpoints", () => {
   let apiKey;
-  let username;
+  let userId;
 
   beforeAll(async () => {
     // Create a test user
     const adminResponse = await request(app)
       .post("/admin/users")
       .set("x-admin-key", process.env.ADMIN_KEY)
-      .send({ username: "test-stats-user" });
+      .send({ userId: "test-stats-user", displayName: "Test Stats User" });
 
-    apiKey = adminResponse.body.apiKey;
-    username = adminResponse.body.username;
+    apiKey = adminResponse.body.user.apiKey;
+    userId = adminResponse.body.user.userId;
 
     // Create test stats directory with sample data
     const statsDir = path.join(
       __dirname,
       "../../uploads/worlds",
-      username,
+      userId,
       "stats"
     );
     await fs.mkdir(statsDir, { recursive: true });
@@ -47,7 +47,7 @@ describe("Stats Endpoints", () => {
 
   afterAll(async () => {
     // Clean up test data
-    const worldDir = path.join(__dirname, "../../uploads/worlds", username);
+    const worldDir = path.join(__dirname, "../../uploads/worlds", userId);
     try {
       await fs.rm(worldDir, { recursive: true, force: true });
     } catch (error) {
@@ -79,11 +79,14 @@ describe("Stats Endpoints", () => {
       const newUserRes = await request(app)
         .post("/admin/users")
         .set("x-admin-key", process.env.ADMIN_KEY)
-        .send({ username: "test-empty-stats-user" });
+        .send({
+          userId: "test-empty-stats-user",
+          displayName: "Test Empty Stats User",
+        });
 
       const response = await request(app)
         .get("/api/local/stats")
-        .set("x-api-key", newUserRes.body.apiKey);
+        .set("x-api-key", newUserRes.body.user.apiKey);
 
       expect(response.status).toBe(200);
       expect(response.body.count).toBe(0);

@@ -71,10 +71,10 @@ Demo API Key: `demo-key-123456`
 - `POST /admin/users` - Create user
   - Body: `{"userId": "username", "displayName": "User Name"}`
 - `GET /admin/users` - List all users
-- `GET /admin/users/:username` - Get user details
-- `PUT /admin/users/:username` - Update user
+- `GET /admin/users/:userId` - Get user details
+- `PUT /admin/users/:userId` - Update user
   - Body: `{"displayName": "New Name"}`
-- `DELETE /admin/users/:username` - Delete user
+- `DELETE /admin/users/:userId` - Delete user
 
 ## Examples
 
@@ -292,6 +292,13 @@ npm test              # Run all tests
 npm test -- --watch   # Watch mode
 ```
 
+## Author
+
+**Tiago Fernandes**
+- GitHub: [@TiagoFernandes22](https://github.com/TiagoFernandes22)
+
 ## License
 
-MIT
+MIT © [Tiago Fernandes](https://github.com/TiagoFernandes22)
+
+See [LICENSE](LICENSE) file for details.

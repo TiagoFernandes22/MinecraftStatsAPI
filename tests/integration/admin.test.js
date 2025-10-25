@@ -40,16 +40,20 @@ describe("Admin Endpoints", () => {
       const response = await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-user-1" });
+        .send({
+          userId: "test-admin-user-1",
+          displayName: "Test Admin User 1",
+        });
 
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("success", true);
-      expect(response.body).toHaveProperty("username", "test-admin-user-1");
-      expect(response.body).toHaveProperty("apiKey");
-      expect(response.body.apiKey).toMatch(/^[a-f0-9]{64}$/);
+      expect(response.body).toHaveProperty("user");
+      expect(response.body.user).toHaveProperty("userId", "test-admin-user-1");
+      expect(response.body.user).toHaveProperty("apiKey");
+      expect(response.body.user.apiKey).toMatch(/^[a-f0-9]{64}$/);
     });
 
-    it("should reject creation without username", async () => {
+    it("should reject creation without userId", async () => {
       const response = await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
@@ -57,30 +61,36 @@ describe("Admin Endpoints", () => {
 
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty("success", false);
-      expect(response.body.error).toContain("Username required");
+      expect(response.body.error).toContain("userId is required");
     });
 
     it("should reject creation with invalid username type", async () => {
       const response = await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: 12345 });
+        .send({ userId: 12345 });
 
       expect(response.status).toBe(400);
     });
 
-    it("should reject duplicate username", async () => {
+    it("should reject duplicate userId", async () => {
       // Create first user
       await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-duplicate" });
+        .send({
+          userId: "test-admin-duplicate",
+          displayName: "Test Duplicate",
+        });
 
       // Try to create again
       const response = await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-duplicate" });
+        .send({
+          userId: "test-admin-duplicate",
+          displayName: "Test Duplicate",
+        });
 
       expect(response.status).toBe(400);
       expect(response.body.error).toContain("already exists");
@@ -93,12 +103,12 @@ describe("Admin Endpoints", () => {
       await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-list-1" });
+        .send({ userId: "test-admin-list-1", displayName: "Test List 1" });
 
       await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-list-2" });
+        .send({ userId: "test-admin-list-2", displayName: "Test List 2" });
     });
 
     it("should list all users", async () => {
@@ -126,7 +136,7 @@ describe("Admin Endpoints", () => {
       // Check that API keys are not in the response
       response.body.users.forEach((user) => {
         expect(user).not.toHaveProperty("apiKey");
-        expect(user).toHaveProperty("username");
+        expect(user).toHaveProperty("userId");
         expect(user).toHaveProperty("createdAt");
       });
     });
@@ -158,13 +168,16 @@ describe("Admin Endpoints", () => {
     });
   });
 
-  describe("PUT /admin/users/:username", () => {
+  describe("PUT /admin/users/:userId", () => {
     beforeEach(async () => {
       // Create a user to update
       await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-update-user" });
+        .send({
+          userId: "test-admin-update-user",
+          displayName: "Original Name",
+        });
     });
 
     it("should update user displayName", async () => {
@@ -206,13 +219,13 @@ describe("Admin Endpoints", () => {
     });
   });
 
-  describe("DELETE /admin/users/:username", () => {
+  describe("DELETE /admin/users/:userId", () => {
     beforeEach(async () => {
       // Create a user to delete
       await request(app)
         .post("/admin/users")
         .set("x-admin-key", adminKey)
-        .send({ username: "test-admin-delete-user" });
+        .send({ userId: "test-admin-delete-user", displayName: "Delete Me" });
     });
 
     it("should delete user", async () => {
@@ -255,7 +268,7 @@ describe("Admin Endpoints", () => {
 
       expect(response.status).toBe(200);
       const deletedUser = response.body.users.find(
-        (u) => u.username === "test-admin-delete-user"
+        (u) => u.userId === "test-admin-delete-user"
       );
       expect(deletedUser).toBeUndefined();
     });

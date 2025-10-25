@@ -9,9 +9,9 @@ describe("Player Endpoints", () => {
     const adminResponse = await request(app)
       .post("/admin/users")
       .set("x-admin-key", process.env.ADMIN_KEY)
-      .send({ username: "test-player-user" });
+      .send({ userId: "test-player-user", displayName: "Test Player User" });
 
-    apiKey = adminResponse.body.apiKey;
+    apiKey = adminResponse.body.user.apiKey;
   });
 
   describe("GET /api/players/all", () => {

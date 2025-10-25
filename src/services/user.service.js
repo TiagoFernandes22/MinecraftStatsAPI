@@ -19,14 +19,14 @@ class UserService {
     return users.find((u) => u.apiKey === apiKey) || null;
   }
 
-  async createUser(username) {
+  async createUser(userId, displayName) {
     const users = await this.loadUsers();
 
     // Check if user already exists (check both userId and username for compatibility)
-    if (users.find((u) => u.userId === username || u.username === username)) {
+    if (users.find((u) => u.userId === userId || u.username === userId)) {
       return {
         success: false,
-        error: "User already exists",
+        error: "User with this userId already exists",
       };
     }
 
@@ -35,9 +35,9 @@ class UserService {
     const apiKey = crypto.randomBytes(32).toString("hex");
 
     const newUser = {
-      userId: username,
-      username,
+      userId: userId,
       apiKey,
+      displayName: displayName || userId, // Use userId as default if displayName not provided
       createdAt: new Date().toISOString(),
     };
 
@@ -51,8 +51,13 @@ class UserService {
 
     return {
       success: true,
-      username,
-      apiKey,
+      message: "User created successfully",
+      user: {
+        userId: newUser.userId,
+        displayName: newUser.displayName,
+        apiKey: newUser.apiKey,
+        createdAt: newUser.createdAt,
+      },
     };
   }
 
@@ -84,7 +89,14 @@ class UserService {
 
     return {
       success: true,
-      user: users[userIndex],
+      message: "User updated successfully",
+      user: {
+        userId: users[userIndex].userId || users[userIndex].username,
+        displayName: users[userIndex].displayName,
+        apiKey: users[userIndex].apiKey,
+        createdAt: users[userIndex].createdAt,
+        updatedAt: users[userIndex].updatedAt,
+      },
     };
   }
 
@@ -113,7 +125,7 @@ class UserService {
     return {
       success: true,
       message: "User deleted successfully",
-      username: deletedUser.userId || deletedUser.username,
+      userId: deletedUser.userId || deletedUser.username,
     };
   }
 

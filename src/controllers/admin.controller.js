@@ -9,16 +9,16 @@ class AdminController {
    */
   async createUser(req, res, next) {
     try {
-      const { username } = req.body;
+      const { userId, displayName } = req.body;
 
-      if (!username || typeof username !== "string") {
+      if (!userId || typeof userId !== "string") {
         return res.status(400).json({
           success: false,
-          error: "Username required",
+          error: "userId is required and must be a string",
         });
       }
 
-      const result = await userService.createUser(username);
+      const result = await userService.createUser(userId, displayName);
 
       if (!result.success) {
         return res.status(400).json(result);
@@ -39,7 +39,7 @@ class AdminController {
       const users = await userService.loadUsers();
 
       const usersWithoutKeys = users.map((user) => ({
-        username: user.userId || user.username,
+        userId: user.userId || user.username,
         displayName: user.displayName,
         createdAt: user.createdAt,
       }));
@@ -48,6 +48,41 @@ class AdminController {
         success: true,
         count: users.length,
         users: usersWithoutKeys,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /admin/users/:userId
+   * Get specific user details
+   */
+  async getUser(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const users = await userService.loadUsers();
+
+      const user = users.find(
+        (u) => u.userId === userId || u.username === userId
+      );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+
+      res.json({
+        success: true,
+        user: {
+          userId: user.userId || user.username,
+          displayName: user.displayName,
+          apiKey: user.apiKey,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+        },
       });
     } catch (error) {
       next(error);
@@ -75,12 +110,12 @@ class AdminController {
   }
 
   /**
-   * PUT /admin/users/:username
+   * PUT /admin/users/:userId
    * Update user
    */
   async updateUser(req, res, next) {
     try {
-      const { username } = req.params;
+      const { userId } = req.params;
       const { displayName } = req.body;
 
       if (!displayName || typeof displayName !== "string") {
@@ -90,7 +125,7 @@ class AdminController {
         });
       }
 
-      const result = await userService.updateUser(username, { displayName });
+      const result = await userService.updateUser(userId, { displayName });
 
       if (!result.success) {
         return res.status(404).json(result);
@@ -103,14 +138,14 @@ class AdminController {
   }
 
   /**
-   * DELETE /admin/users/:username
+   * DELETE /admin/users/:userId
    * Delete user
    */
   async deleteUser(req, res, next) {
     try {
-      const { username } = req.params;
+      const { userId } = req.params;
 
-      const result = await userService.deleteUser(username);
+      const result = await userService.deleteUser(userId);
 
       if (!result.success) {
         return res.status(404).json(result);

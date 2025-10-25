@@ -65,7 +65,6 @@ class WorldController {
     try {
       const username = req.user.userId || req.user.username;
       const info = await worldService.getWorldInfo(username);
-
       if (!info) {
         return res.status(404).json({
           success: false,
