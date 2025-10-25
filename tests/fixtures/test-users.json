@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "username": "test-user",
+      "apiKey": "test-api-key-123456789",
+      "createdAt": "2025-10-25T00:00:00.000Z"
+    },
+    {
+      "username": "demo-user",
+      "apiKey": "demo-api-key-987654321",
+      "createdAt": "2025-10-25T00:00:00.000Z"
+    }
+  ]
+}

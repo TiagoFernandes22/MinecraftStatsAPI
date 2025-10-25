@@ -4,7 +4,7 @@
       "userId": "demo-user",
       "apiKey": "demo-key-123456",
       "displayName": "Demo User",
-      "createdAt": "2025-10-22T00:00:00.000Z"
+      "createdAt": "2025-10-23T10:00:00.000Z"
     },
     {
       "userId": "hermit",
@@ -15,8 +15,8 @@
     {
       "userId": "snacks",
       "apiKey": "1eb3f96a97d3eb0d4fcfc73a6aeedb60d21472fcd145a3d967faf99b695f3f09",
-      "displayName": "noPrato",
-      "createdAt": "2025-10-23T13:12:16.209Z"
+      "displayName": "snackz",
+      "createdAt": "2025-10-23T10:15:22.891Z"
     }
   ]
 }

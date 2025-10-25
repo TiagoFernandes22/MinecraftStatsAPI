@@ -1,0 +1,26 @@
+{
+  "stats": {
+    "minecraft:custom": {
+      "minecraft:play_one_minute": 72000,
+      "minecraft:deaths": 5,
+      "minecraft:mob_kills": 150,
+      "minecraft:player_kills": 2,
+      "minecraft:jump": 1000,
+      "minecraft:walk_one_cm": 500000,
+      "minecraft:sprint_one_cm": 200000,
+      "minecraft:damage_taken": 500,
+      "minecraft:damage_dealt": 1000
+    },
+    "minecraft:mined": {
+      "minecraft:stone": 1000,
+      "minecraft:dirt": 500,
+      "minecraft:diamond_ore": 25
+    },
+    "minecraft:killed": {
+      "minecraft:zombie": 50,
+      "minecraft:skeleton": 30,
+      "minecraft:creeper": 20
+    }
+  },
+  "DataVersion": 3465
+}

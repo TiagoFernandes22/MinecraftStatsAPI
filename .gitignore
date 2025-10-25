@@ -12,6 +12,7 @@ uploads/worlds/*
 
 # Ignore users.json (contains real API keys)
 data/users.json
+data/users.test.json
 
 # But track demo users file
 !data/users.demo.json
