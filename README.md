@@ -9,17 +9,32 @@ npm install
 npm start
 ```
 
-Server: `http://localhost:3000`
+Server: `http://localhost:3000`  
+**API Documentation**: `http://localhost:3000/api-docs`
 
 ## Authentication
 
-All endpoints require API key (except `/health`):
+All endpoints require API key (except `/health` and `/api-docs`):
 
 ```http
 Authorization: Bearer your-api-key
 ```
 
 Demo API Key: `demo-key-123456`
+
+## API Documentation
+
+Interactive API documentation is available via Swagger UI:
+
+**Local**: [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+
+The Swagger documentation provides:
+- Complete endpoint reference
+- Request/response schemas
+- Interactive testing interface
+- Authentication configuration
+- Rate limiting information
+- Validation requirements
 
 ## Endpoints
 
@@ -59,6 +74,8 @@ Demo API Key: `demo-key-123456`
 ### World Management
 - `POST /api/upload/world` - Upload world zip
   - Body: `multipart/form-data` with field `world` (zip file)
+- `PUT /api/world` - Replace existing world
+  - Body: `multipart/form-data` with field `world` (zip file)
 - `DELETE /api/world` - Delete world
 - `GET /api/world/info` - Get world information
 - `GET /api/storage` - Get storage statistics
@@ -75,6 +92,8 @@ Demo API Key: `demo-key-123456`
 - `PUT /admin/users/:userId` - Update user
   - Body: `{"displayName": "New Name"}`
 - `DELETE /admin/users/:userId` - Delete user
+- `POST /admin/users/:userId/regenerate-key` - Regenerate API key
+- `GET /admin/storage` - Get users storage
 
 ## Examples
 
@@ -125,6 +144,13 @@ curl -X POST -H "Authorization: Bearer demo-key-123456" \
   http://localhost:3000/api/upload/world
 ```
 
+**Replace existing world:**
+```bash
+curl -X PUT -H "Authorization: Bearer demo-key-123456" \
+  -F "world=@new-world.zip" \
+  http://localhost:3000/api/world
+```
+
 **Delete world:**
 ```bash
 curl -X DELETE -H "Authorization: Bearer demo-key-123456" \
@@ -153,16 +179,76 @@ curl -X DELETE -H "Authorization: Bearer admin-key" \
   http://localhost:3000/admin/users/newuser
 ```
 
+**Regenerate API key (admin):**
+```bash
+curl -X POST -H "Authorization: Bearer admin-key" \
+  http://localhost:3000/admin/users/newuser/regenerate-key
+```
+
 ## Features
 
+- **Interactive API Documentation** - Swagger/OpenAPI UI at `/api-docs`
 - **Per-user world isolation** - Each API key has its own world directory
 - **Player filtering** - Hide/show specific players via `player-filter.json`
 - **NBT inventory parsing** - Read Minecraft .dat files
 - **Parallel processing** - Fast stats for 50+ players using Promise.all
 - **Storage management** - 500MB quota per user, 10k file limit
-- **Rate limiting** - 120 requests/minute per IP
-- **Comprehensive testing** - 82 tests (21 unit, 61 integration)
+- **Input validation** - Joi schema validation on all endpoints
+- **Rate limiting** - Protect against DDoS attacks
+  - General API: 100 requests per 15 minutes
+  - File uploads: 5 uploads per hour
+  - Admin endpoints: 30 requests per 15 minutes
+  - Mojang API: 20 requests per 5 minutes
+- **Security headers** - Helmet.js security best practices
+- **Comprehensive testing** - 90 tests (21 unit, 69 integration)
 - **Backward compatibility** - Old endpoint paths still work
+
+## Security
+
+### Input Validation
+All endpoints validate inputs using Joi schemas:
+- **userId**: Alphanumeric, 3-30 characters
+- **displayName**: 1-50 characters
+- **UUID**: Valid UUID v4 format
+- **Arrays**: Type checking and size limits
+
+Invalid requests return:
+```json
+{
+  "success": false,
+  "error": "Validation error",
+  "details": [
+    {
+      "field": "userId",
+      "message": "userId must only contain alphanumeric characters"
+    }
+  ]
+}
+```
+
+### Rate Limiting
+Protection against abuse and DDoS attacks:
+- **General API**: 100 requests / 15 minutes per IP
+- **File Uploads**: 5 uploads / hour per IP
+- **Admin Endpoints**: 30 requests / 15 minutes per IP
+- **Mojang API**: 20 requests / 5 minutes per IP
+
+Rate limit exceeded response:
+```json
+{
+  "success": false,
+  "error": "Too many requests from this IP, please try again later.",
+  "retryAfter": "2025-10-26T15:45:00.000Z"
+}
+```
+
+### Security Headers
+Helmet.js provides protection against common vulnerabilities:
+- XSS Protection
+- Content Security Policy
+- DNS Prefetch Control
+- Frame Guard (clickjacking prevention)
+- HSTS (HTTP Strict Transport Security)
 
 ## Player Filter
 

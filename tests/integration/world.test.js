@@ -116,4 +116,39 @@ describe("World Endpoints", () => {
     // Note: Testing actual zip upload would require creating a valid zip file
     // This is covered in end-to-end tests with fixture files
   });
+
+  describe("PUT /api/world", () => {
+    it("should return 404 when no existing world to replace", async () => {
+      const response = await request(app)
+        .put("/api/world")
+        .set("x-api-key", apiKey)
+        .attach("world", Buffer.from("test"), "test.zip");
+
+      expect(response.status).toBe(404);
+      expect(response.body).toHaveProperty("success", false);
+      expect(response.body.error).toContain("No existing world");
+    });
+
+    it("should reject replacement without file", async () => {
+      const response = await request(app)
+        .put("/api/world")
+        .set("x-api-key", apiKey);
+
+      expect(response.status).toBe(400);
+      expect(response.body.error).toContain("No file");
+    });
+
+    it("should require authentication", async () => {
+      const response = await request(app)
+        .put("/api/world")
+        .attach("world", Buffer.from("test"), "test.zip");
+
+      expect(response.status).toBe(401);
+    });
+
+    // Note: Testing successful replacement would require:
+    // 1. Creating and uploading a valid world first
+    // 2. Then replacing it with another valid world
+    // This is covered in end-to-end tests with fixture files
+  });
 });

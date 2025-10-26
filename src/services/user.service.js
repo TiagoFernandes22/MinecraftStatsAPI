@@ -129,6 +129,51 @@ class UserService {
     };
   }
 
+  async regenerateApiKey(username) {
+    const users = await this.loadUsers();
+    const userIndex = users.findIndex(
+      (u) => u.userId === username || u.username === username
+    );
+
+    if (userIndex === -1) {
+      return {
+        success: false,
+        error: "User not found",
+      };
+    }
+
+    // Generate new secure API key
+    const crypto = require("crypto");
+    const newApiKey = crypto.randomBytes(32).toString("hex");
+
+    // Store old key for reference in response
+    const oldApiKey = users[userIndex].apiKey;
+
+    // Update user with new API key
+    users[userIndex].apiKey = newApiKey;
+    users[userIndex].keyRegeneratedAt = new Date().toISOString();
+
+    await fs.writeFile(
+      PATHS.USERS_FILE,
+      JSON.stringify({ users }, null, 2),
+      "utf-8"
+    );
+
+    return {
+      success: true,
+      message:
+        "API key regenerated successfully. Please update your applications with the new key.",
+      user: {
+        userId: users[userIndex].userId || users[userIndex].username,
+        displayName: users[userIndex].displayName,
+        apiKey: newApiKey,
+        oldApiKey: oldApiKey.substring(0, 8) + "...", // Show first 8 chars only for security
+        createdAt: users[userIndex].createdAt,
+        keyRegeneratedAt: users[userIndex].keyRegeneratedAt,
+      },
+    };
+  }
+
   getUserWorldPaths(username) {
     const worldDir = path.join(PATHS.UPLOADS_DIR, username);
     return {

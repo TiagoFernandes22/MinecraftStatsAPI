@@ -9,25 +9,16 @@ class StorageService {
    */
   async checkStorageQuota(userWorldDir) {
     try {
-      const totalSize = await getDirectorySize(userWorldDir);
-      const statsDir = path.join(userWorldDir, "stats");
-      const playerdataDir = path.join(userWorldDir, "playerdata");
-
-      const [statsFiles, playerdataFiles] = await Promise.all([
-        fs.readdir(statsDir).catch(() => []),
-        fs.readdir(playerdataDir).catch(() => []),
-      ]);
-
-      const totalFiles = statsFiles.length + playerdataFiles.length;
+      const { totalSize, fileCount } = await getDirectorySize(userWorldDir);
 
       return {
         sizeBytes: totalSize,
-        fileCount: totalFiles,
+        fileCount: fileCount,
         withinSizeLimit: totalSize <= STORAGE_QUOTAS.MAX_TOTAL_SIZE,
-        withinFileLimit: totalFiles <= STORAGE_QUOTAS.MAX_FILE_COUNT,
+        withinFileLimit: fileCount <= STORAGE_QUOTAS.MAX_FILE_COUNT,
         exceeded:
           totalSize > STORAGE_QUOTAS.MAX_TOTAL_SIZE ||
-          totalFiles > STORAGE_QUOTAS.MAX_FILE_COUNT,
+          fileCount > STORAGE_QUOTAS.MAX_FILE_COUNT,
       };
     } catch (error) {
       return {
@@ -84,7 +75,7 @@ class StorageService {
    * Get all users storage overview
    */
   async getAllUsersStorageStats(uploadsDir) {
-    const worldsDir = path.join(uploadsDir, "worlds");
+    const worldsDir = path.join(uploadsDir);
 
     try {
       const userDirs = await fs.readdir(worldsDir);

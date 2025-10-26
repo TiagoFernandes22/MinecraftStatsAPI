@@ -273,4 +273,79 @@ describe("Admin Endpoints", () => {
       expect(deletedUser).toBeUndefined();
     });
   });
+
+  describe("POST /admin/users/:userId/regenerate-key", () => {
+    let testUserId;
+    let originalApiKey;
+
+    beforeEach(async () => {
+      // Create a unique user for each test (keep it short for validation)
+      const uniqueId = `regen-${Math.random().toString(36).substring(2, 15)}`;
+
+      const createResponse = await request(app)
+        .post("/admin/users")
+        .set("x-admin-key", adminKey)
+        .send({ userId: uniqueId, displayName: "Regen Test User" });
+
+      testUserId = createResponse.body.user.userId;
+      originalApiKey = createResponse.body.user.apiKey;
+    });
+
+    it("should regenerate API key for existing user", async () => {
+      const response = await request(app)
+        .post(`/admin/users/${testUserId}/regenerate-key`)
+        .set("x-admin-key", adminKey);
+
+      expect(response.status).toBe(200);
+      expect(response.body).toHaveProperty("success", true);
+      expect(response.body).toHaveProperty("user");
+      expect(response.body.user).toHaveProperty("apiKey");
+      expect(response.body.user.apiKey).not.toBe(originalApiKey);
+      expect(response.body.user.apiKey).toMatch(/^[a-f0-9]{64}$/);
+      expect(response.body.user).toHaveProperty("userId", testUserId);
+      expect(response.body.user).toHaveProperty("keyRegeneratedAt");
+    });
+
+    it("should invalidate old API key after regeneration", async () => {
+      // Regenerate key
+      await request(app)
+        .post(`/admin/users/${testUserId}/regenerate-key`)
+        .set("x-admin-key", adminKey);
+
+      // Try to use old key
+      const response = await request(app)
+        .get("/api/me")
+        .set("x-api-key", originalApiKey);
+
+      expect(response.status).toBe(401);
+    });
+
+    it("should return 404 for non-existent user", async () => {
+      const response = await request(app)
+        .post("/admin/users/non-existent-user/regenerate-key")
+        .set("x-admin-key", adminKey);
+
+      expect(response.status).toBe(404);
+      expect(response.body.error).toContain("not found");
+    });
+
+    it("should require admin key", async () => {
+      const response = await request(app).post(
+        `/admin/users/${testUserId}/regenerate-key`
+      );
+
+      expect(response.status).toBe(403);
+    });
+
+    it("should show partial old key in response for reference", async () => {
+      const response = await request(app)
+        .post(`/admin/users/${testUserId}/regenerate-key`)
+        .set("x-admin-key", adminKey);
+
+      expect(response.status).toBe(200);
+      expect(response.body.user).toHaveProperty("oldApiKey");
+      expect(response.body.user.oldApiKey).toContain("...");
+      expect(response.body.user.oldApiKey.length).toBeLessThan(64);
+    });
+  });
 });

@@ -8,8 +8,13 @@ router.post(
   worldUpload.single("world"),
   worldController.uploadWorld
 );
+
+router.put("/world", worldUpload.single("world"), worldController.replaceWorld);
+
 router.delete("/world", worldController.deleteWorld);
+
 router.get("/world/info", worldController.getWorldInfo);
+
 router.get("/storage", worldController.getStorageStats);
 
 module.exports = router;

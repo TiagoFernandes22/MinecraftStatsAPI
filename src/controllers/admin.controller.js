@@ -156,6 +156,25 @@ class AdminController {
       next(error);
     }
   }
+
+  /**
+   * POST /admin/users/:userId/regenerate-key
+   * Regenerate API key for user
+   */
+  async regenerateApiKey(req, res, next) {
+    try {
+      const { userId } = req.params;
+      const result = await userService.regenerateApiKey(userId);
+
+      if (!result.success) {
+        return res.status(404).json(result);
+      }
+
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 module.exports = new AdminController();
