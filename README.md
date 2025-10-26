@@ -81,7 +81,7 @@ The Swagger documentation provides:
 - `GET /api/storage` - Get storage statistics
 
 ### Cache
-- `POST /api/cache/clear` - Clear cache
+- `DELETE /api/cache` - Clear cache
 - `GET /api/cache/stats` - Cache statistics
 
 ### Admin (requires ADMIN_KEY)
