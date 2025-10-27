@@ -333,10 +333,6 @@ const options = {
         description: "Player statistics and inventory endpoints",
       },
       {
-        name: "Stats",
-        description: "Legacy stats endpoints (backward compatibility)",
-      },
-      {
         name: "Mojang",
         description: "Mojang API proxy endpoints",
       },

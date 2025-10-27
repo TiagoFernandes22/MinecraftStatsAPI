@@ -19,7 +19,6 @@ const {
 } = require("./middleware/rate-limit.middleware");
 
 // Import routes
-const statsRoutes = require("./routes/stats.routes");
 const playerRoutes = require("./routes/player.routes");
 const worldRoutes = require("./routes/world.routes");
 const adminRoutes = require("./routes/admin.routes");
@@ -61,9 +60,7 @@ app.get("/api/me", requireApiKey, (req, res) => {
 
 // API routes with rate limiting
 app.use("/api", apiLimiter); // Apply rate limiting to all API routes
-app.use("/api", requireApiKey, statsRoutes);
 app.use("/api/players", requireApiKey, playerRoutes);
-app.use("/api/player", requireApiKey, playerRoutes); // Backward compatibility
 app.use("/api/upload", uploadLimiter); // Strict rate limiting for uploads
 app.use("/api", requireApiKey, worldRoutes);
 app.use("/api/cache", requireApiKey, cacheRoutes);

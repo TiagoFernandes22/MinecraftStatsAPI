@@ -7,17 +7,23 @@ router.get("/all", playerController.getAllPlayers);
 
 router.get("/hidden", playerController.getPlayerFilter);
 
-router.put(
-  "/hidden",
-  validate(schemas.hiddenPlayers),
-  playerController.updatePlayerFilter
-);
-
 router.post(
   "/hidden",
   validate(schemas.hiddenPlayers),
-  playerController.updatePlayerFilter
-); // Support POST for backward compatibility
+  playerController.addToPlayerFilter
+);
+
+router.put(
+  "/hidden",
+  validate(schemas.hiddenPlayers),
+  playerController.replacePlayerFilter
+);
+
+router.delete(
+  "/hidden",
+  validate(schemas.hiddenPlayers),
+  playerController.removeFromPlayerFilter
+);
 
 router.post(
   "/filter",

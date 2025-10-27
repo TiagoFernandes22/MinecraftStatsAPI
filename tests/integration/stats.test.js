@@ -3,7 +3,7 @@ const app = require("../../src/app");
 const fs = require("fs").promises;
 const path = require("path");
 
-describe("Stats Endpoints", () => {
+describe("Player Stats Endpoints", () => {
   let apiKey;
   let userId;
 
@@ -55,10 +55,10 @@ describe("Stats Endpoints", () => {
     }
   });
 
-  describe("GET /api/local/stats", () => {
-    it("should return player stats", async () => {
+  describe("GET /api/players/all?statsOnly=true", () => {
+    it("should return player stats without inventory", async () => {
       const response = await request(app)
-        .get("/api/local/stats")
+        .get("/api/players/all?statsOnly=true")
         .set("x-api-key", apiKey);
 
       expect(response.status).toBe(200);
@@ -69,7 +69,9 @@ describe("Stats Endpoints", () => {
     });
 
     it("should require authentication", async () => {
-      const response = await request(app).get("/api/local/stats");
+      const response = await request(app).get(
+        "/api/players/all?statsOnly=true"
+      );
 
       expect(response.status).toBe(401);
     });
@@ -85,7 +87,7 @@ describe("Stats Endpoints", () => {
         });
 
       const response = await request(app)
-        .get("/api/local/stats")
+        .get("/api/players/all?statsOnly=true")
         .set("x-api-key", newUserRes.body.user.apiKey);
 
       expect(response.status).toBe(200);
@@ -94,10 +96,10 @@ describe("Stats Endpoints", () => {
     });
   });
 
-  describe("GET /api/local/stats-with-inventory", () => {
+  describe("GET /api/players/all", () => {
     it("should return stats with inventory data", async () => {
       const response = await request(app)
-        .get("/api/local/stats-with-inventory")
+        .get("/api/players/all")
         .set("x-api-key", apiKey);
 
       expect(response.status).toBe(200);
@@ -107,33 +109,32 @@ describe("Stats Endpoints", () => {
     });
 
     it("should require authentication", async () => {
-      const response = await request(app).get(
-        "/api/local/stats-with-inventory"
-      );
+      const response = await request(app).get("/api/players/all");
 
       expect(response.status).toBe(401);
     });
   });
 
-  describe("GET /api/local/stats/:uuid", () => {
-    it("should return stats for specific player", async () => {
+  describe("GET /api/players/:uuid?statsOnly=true", () => {
+    it("should return stats only for specific player", async () => {
       const testUuid = "550e8400-e29b-41d4-a716-446655440000";
 
       const response = await request(app)
-        .get(`/api/local/stats/${testUuid}`)
+        .get(`/api/players/${testUuid}?statsOnly=true`)
         .set("x-api-key", apiKey);
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty("uuid");
-      expect(response.body).toHaveProperty("name");
-      expect(response.body).toHaveProperty("stats");
+      expect(response.body).toHaveProperty("success", true);
+      expect(response.body.player).toHaveProperty("uuid");
+      expect(response.body.player).toHaveProperty("name");
+      expect(response.body.player).toHaveProperty("stats");
     });
 
     it("should return 404 for non-existent player", async () => {
       const fakeUuid = "00000000-0000-0000-0000-000000000000";
 
       const response = await request(app)
-        .get(`/api/local/stats/${fakeUuid}`)
+        .get(`/api/players/${fakeUuid}?statsOnly=true`)
         .set("x-api-key", apiKey);
 
       expect(response.status).toBe(404);
@@ -142,7 +143,9 @@ describe("Stats Endpoints", () => {
     it("should require authentication", async () => {
       const testUuid = "550e8400-e29b-41d4-a716-446655440000";
 
-      const response = await request(app).get(`/api/local/stats/${testUuid}`);
+      const response = await request(app).get(
+        `/api/players/${testUuid}?statsOnly=true`
+      );
 
       expect(response.status).toBe(401);
     });

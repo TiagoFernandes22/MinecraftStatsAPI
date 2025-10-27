@@ -377,9 +377,20 @@ module.exports = {
     get: {
       summary: "Get all players",
       description:
-        "Returns statistics and inventory data for all players in the world",
+        "Returns statistics and inventory data for all players in the world. Use ?statsOnly=true to get stats without inventory (faster)",
       tags: ["Players"],
       security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
+      parameters: [
+        {
+          in: "query",
+          name: "statsOnly",
+          required: false,
+          schema: { type: "boolean" },
+          description:
+            "If true, returns only stats without inventory data (faster)",
+          example: false,
+        },
+      ],
       responses: {
         200: {
           description: "Players retrieved successfully",
@@ -389,6 +400,7 @@ module.exports = {
                 type: "object",
                 properties: {
                   success: { type: "boolean", example: true },
+                  count: { type: "integer", example: 10 },
                   players: {
                     type: "array",
                     items: {
@@ -430,6 +442,7 @@ module.exports = {
                     items: { type: "string", format: "uuid" },
                     example: ["550e8400-e29b-41d4-a716-446655440000"],
                   },
+                  count: { type: "integer", example: 1 },
                 },
               },
             },
@@ -439,9 +452,10 @@ module.exports = {
         429: { $ref: "#/components/responses/RateLimitExceeded" },
       },
     },
-    put: {
-      summary: "Update hidden players list",
-      description: "Updates the list of player UUIDs to hide from queries",
+    post: {
+      summary: "Add players to hidden list",
+      description:
+        "Adds player UUIDs to the hidden list (doesn't remove existing ones). This is additive - players will be merged with existing hidden list.",
       tags: ["Players"],
       security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
       requestBody: {
@@ -455,7 +469,7 @@ module.exports = {
                 hiddenPlayers: {
                   type: "array",
                   items: { type: "string", format: "uuid" },
-                  description: "Array of player UUIDs to hide",
+                  description: "Array of player UUIDs to add to hidden list",
                   example: [
                     "550e8400-e29b-41d4-a716-446655440000",
                     "660e8400-e29b-41d4-a716-446655440001",
@@ -468,7 +482,61 @@ module.exports = {
       },
       responses: {
         200: {
-          description: "Hidden players list updated successfully",
+          description: "Players added to hidden list successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  success: { type: "boolean", example: true },
+                  message: {
+                    type: "string",
+                    example: "Player filter updated successfully",
+                  },
+                  added: { type: "integer", example: 2 },
+                  totalHidden: { type: "integer", example: 5 },
+                },
+              },
+            },
+          },
+        },
+        400: { $ref: "#/components/responses/ValidationError" },
+        401: { $ref: "#/components/responses/Unauthorized" },
+        429: { $ref: "#/components/responses/RateLimitExceeded" },
+      },
+    },
+    put: {
+      summary: "Replace entire hidden players list",
+      description:
+        "Completely replaces the hidden players list with the provided UUIDs. All previous hidden players will be removed.",
+      tags: ["Players"],
+      security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["hiddenPlayers"],
+              properties: {
+                hiddenPlayers: {
+                  type: "array",
+                  items: { type: "string", format: "uuid" },
+                  description:
+                    "Complete array of player UUIDs to hide (replaces existing list)",
+                  example: [
+                    "550e8400-e29b-41d4-a716-446655440000",
+                    "660e8400-e29b-41d4-a716-446655440001",
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Hidden players list replaced successfully",
           content: {
             "application/json": {
               schema: {
@@ -489,11 +557,10 @@ module.exports = {
         429: { $ref: "#/components/responses/RateLimitExceeded" },
       },
     },
-    post: {
-      summary: "Update hidden players list (deprecated)",
+    delete: {
+      summary: "Remove players from hidden list",
       description:
-        "Updates the list of player UUIDs to hide from queries. Use PUT method instead.",
-      deprecated: true,
+        "Removes specified player UUIDs from the hidden list. Players not in the list will be ignored.",
       tags: ["Players"],
       security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
       requestBody: {
@@ -507,6 +574,8 @@ module.exports = {
                 hiddenPlayers: {
                   type: "array",
                   items: { type: "string", format: "uuid" },
+                  description:
+                    "Array of player UUIDs to remove from hidden list",
                   example: ["550e8400-e29b-41d4-a716-446655440000"],
                 },
               },
@@ -515,9 +584,28 @@ module.exports = {
         },
       },
       responses: {
-        200: { description: "Hidden players list updated successfully" },
+        200: {
+          description: "Players removed from hidden list successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  success: { type: "boolean", example: true },
+                  message: {
+                    type: "string",
+                    example: "Player filter updated successfully",
+                  },
+                  removed: { type: "integer", example: 1 },
+                  totalHidden: { type: "integer", example: 4 },
+                },
+              },
+            },
+          },
+        },
         400: { $ref: "#/components/responses/ValidationError" },
         401: { $ref: "#/components/responses/Unauthorized" },
+        429: { $ref: "#/components/responses/RateLimitExceeded" },
       },
     },
   },
@@ -626,7 +714,7 @@ module.exports = {
     get: {
       summary: "Get player details",
       description:
-        "Returns complete player information including stats and inventory",
+        "Returns complete player information including stats and inventory. Use ?statsOnly=true to get stats without inventory (faster)",
       tags: ["Players"],
       security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
       parameters: [
@@ -637,6 +725,15 @@ module.exports = {
           schema: { type: "string", format: "uuid" },
           description: "Player UUID",
           example: "550e8400-e29b-41d4-a716-446655440000",
+        },
+        {
+          in: "query",
+          name: "statsOnly",
+          required: false,
+          schema: { type: "boolean" },
+          description:
+            "If true, returns only stats without inventory data (faster)",
+          example: false,
         },
       ],
       responses: {
@@ -1043,166 +1140,6 @@ module.exports = {
         },
         401: { $ref: "#/components/responses/Unauthorized" },
         429: { $ref: "#/components/responses/RateLimitExceeded" },
-      },
-    },
-  },
-
-  // ============================================================================
-  // STATS ENDPOINTS (Legacy/Backward Compatibility)
-  // ============================================================================
-  "/api/local/stats": {
-    get: {
-      summary: "Get all player stats (legacy)",
-      description:
-        "Returns statistics for all players. Use /api/players/all for new implementations.",
-      tags: ["Stats"],
-      security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
-      responses: {
-        200: {
-          description: "Stats retrieved successfully",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean", example: true },
-                  stats: {
-                    type: "array",
-                    items: { $ref: "#/components/schemas/PlayerStats" },
-                  },
-                },
-              },
-            },
-          },
-        },
-        401: { $ref: "#/components/responses/Unauthorized" },
-        429: { $ref: "#/components/responses/RateLimitExceeded" },
-      },
-    },
-  },
-
-  "/api/local/stats-with-inventory": {
-    get: {
-      summary: "Get all player stats with inventory (legacy)",
-      description:
-        "Returns statistics and inventory for all players. Use /api/players/all for new implementations.",
-      tags: ["Stats"],
-      security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
-      responses: {
-        200: {
-          description: "Stats with inventory retrieved successfully",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean", example: true },
-                  stats: {
-                    type: "array",
-                    items: {
-                      allOf: [
-                        { $ref: "#/components/schemas/PlayerStats" },
-                        { $ref: "#/components/schemas/Inventory" },
-                      ],
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        401: { $ref: "#/components/responses/Unauthorized" },
-        429: { $ref: "#/components/responses/RateLimitExceeded" },
-      },
-    },
-  },
-
-  "/api/local/stats/{uuid}": {
-    get: {
-      summary: "Get player stats by UUID (legacy)",
-      description:
-        "Returns statistics for a specific player. Use /api/players/{uuid} for new implementations.",
-      tags: ["Stats"],
-      security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
-      parameters: [
-        {
-          in: "path",
-          name: "uuid",
-          required: true,
-          schema: { type: "string", format: "uuid" },
-          description: "Player UUID",
-          example: "550e8400-e29b-41d4-a716-446655440000",
-        },
-      ],
-      responses: {
-        200: {
-          description: "Player stats retrieved successfully",
-          content: {
-            "application/json": {
-              schema: {
-                type: "object",
-                properties: {
-                  success: { type: "boolean", example: true },
-                  stats: { $ref: "#/components/schemas/PlayerStats" },
-                },
-              },
-            },
-          },
-        },
-        400: { $ref: "#/components/responses/ValidationError" },
-        401: { $ref: "#/components/responses/Unauthorized" },
-        404: { $ref: "#/components/responses/NotFound" },
-        429: { $ref: "#/components/responses/RateLimitExceeded" },
-      },
-    },
-  },
-
-  "/api/local/inventory/{uuid}": {
-    get: {
-      summary: "Get player inventory (deprecated)",
-      description:
-        "Returns player inventory. Use /api/players/{uuid}/inventory instead.",
-      deprecated: true,
-      tags: ["Stats"],
-      security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
-      parameters: [
-        {
-          in: "path",
-          name: "uuid",
-          required: true,
-          schema: { type: "string", format: "uuid" },
-          description: "Player UUID",
-        },
-      ],
-      responses: {
-        200: { description: "Player inventory retrieved successfully" },
-        401: { $ref: "#/components/responses/Unauthorized" },
-        404: { $ref: "#/components/responses/NotFound" },
-      },
-    },
-  },
-
-  "/api/local/player/{uuid}": {
-    get: {
-      summary: "Get player details (deprecated)",
-      description:
-        "Returns complete player information. Use /api/players/{uuid} instead.",
-      deprecated: true,
-      tags: ["Stats"],
-      security: [{ ApiKeyHeader: [] }, { ApiKeyQuery: [] }, { BearerAuth: [] }],
-      parameters: [
-        {
-          in: "path",
-          name: "uuid",
-          required: true,
-          schema: { type: "string", format: "uuid" },
-          description: "Player UUID",
-        },
-      ],
-      responses: {
-        200: { description: "Player details retrieved successfully" },
-        401: { $ref: "#/components/responses/Unauthorized" },
-        404: { $ref: "#/components/responses/NotFound" },
       },
     },
   },

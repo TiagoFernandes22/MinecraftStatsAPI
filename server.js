@@ -5,7 +5,8 @@ const { PORT } = require("./src/config/environment");
 const server = app.listen(PORT, () => {
   console.log(`Minecraft Stats API running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Health check:  http://localhost:${PORT}/health`);
+  console.log(`API docs:      http://localhost:${PORT}/api-docs`);
 });
 
 process.on("SIGTERM", () => {

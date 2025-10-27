@@ -42,30 +42,24 @@ The Swagger documentation provides:
 - `GET /health` - Health check (no auth)
 - `GET /api/me` - Current user info
 
-### Player Stats
-- `GET /api/local/stats` - All player stats (basic info only)
-  - Returns: `uuid`, `name`, `skin`, `cape`, `stats` (summarized), `rawStats` (full Minecraft stats), `dataVersion`
-- `GET /api/local/stats/:uuid` - Single player stats
-  - Returns: Same as above for specific player
-- `GET /api/local/stats-with-inventory` - All stats + inventory (respects player filter)
-  - Returns: Same as `/api/players/:uuid` for each player
-
 ### Player Data
-- `GET /api/players/all` - All players with stats (unfiltered)
-  - Returns: Array of players with `stats`, `rawStats`, and `inventory`
-- `GET /api/players/:uuid` - Single player with stats + inventory
-  - Returns: `uuid`, `name`, `skin`, `cape`, `stats` (summarized), `rawStats` (full Minecraft stats), `inventory`, `totalItems`
+- `GET /api/players/all` - All players with stats and inventory
+  - Query params: `?statsOnly=true` to exclude inventory (faster)
+  - Returns: Array of players with `stats`, `rawStats`, and `inventory` (if not statsOnly)
+- `GET /api/players/:uuid` - Single player with stats and inventory
+  - Query params: `?statsOnly=true` to exclude inventory (faster)
+  - Returns: `uuid`, `name`, `skin`, `cape`, `stats` (summarized), `rawStats` (full Minecraft stats), `inventory` (if not statsOnly), `totalItems`
 - `GET /api/players/:uuid/inventory` - Player inventory only
-- `GET /api/local/player/:uuid` - Player data (backward compatibility)
-- `GET /api/local/inventory/:uuid` - Player inventory (backward compatibility)
 - `POST /api/players/filter` - Get filtered players by UUID list
   - Body: `{"uuids": ["uuid1", "uuid2"]}`
 
 ### Player Filter Management
 - `GET /api/players/hidden` - Get list of hidden players
-- `POST /api/players/hidden` - Update hidden players list
+- `POST /api/players/hidden` - Add players to hidden list (additive)
   - Body: `{"hiddenPlayers": ["uuid1", "uuid2"]}`
-- `PUT /api/players/hidden` - Update hidden players list (RESTful)
+- `PUT /api/players/hidden` - Replace entire hidden players list
+  - Body: `{"hiddenPlayers": ["uuid1", "uuid2"]}`
+- `DELETE /api/players/hidden` - Remove players from hidden list
   - Body: `{"hiddenPlayers": ["uuid1", "uuid2"]}`
 
 ### Mojang API
@@ -97,16 +91,16 @@ The Swagger documentation provides:
 
 ## Examples
 
-**Get all stats:**
+**Get all players (stats only, faster):**
 ```bash
 curl -H "Authorization: Bearer demo-key-123456" \
-  http://localhost:3000/api/local/stats
+  http://localhost:3000/api/players/all?statsOnly=true
 ```
 
-**Get stats with inventory (respects filter):**
+**Get all players with inventory:**
 ```bash
 curl -H "Authorization: Bearer demo-key-123456" \
-  http://localhost:3000/api/local/stats-with-inventory
+  http://localhost:3000/api/players/all
 ```
 
 **Get specific player:**
@@ -200,8 +194,7 @@ curl -X POST -H "Authorization: Bearer admin-key" \
   - Admin endpoints: 30 requests per 15 minutes
   - Mojang API: 20 requests per 5 minutes
 - **Security headers** - Helmet.js security best practices
-- **Comprehensive testing** - 90 tests (21 unit, 69 integration)
-- **Backward compatibility** - Old endpoint paths still work
+- **Comprehensive testing** - 108 tests (21 unit, 87 integration)
 
 ## Security
 

@@ -156,4 +156,277 @@ describe("Player Endpoints", () => {
       expect(response.status).toBe(401);
     });
   });
+
+  describe("Hidden Players Filter (CRUD)", () => {
+    const testUuid1 = "550e8400-e29b-41d4-a716-446655440000";
+    const testUuid2 = "660e8400-e29b-41d4-a716-446655440001";
+    const testUuid3 = "770e8400-e29b-41d4-a716-446655440002";
+
+    beforeEach(async () => {
+      // Clear the hidden list before each test
+      await request(app)
+        .put("/api/players/hidden")
+        .set("x-api-key", apiKey)
+        .send({ hiddenPlayers: [] });
+    });
+
+    describe("GET /api/players/hidden", () => {
+      it("should return current hidden players list", async () => {
+        const response = await request(app)
+          .get("/api/players/hidden")
+          .set("x-api-key", apiKey);
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("success", true);
+        expect(response.body).toHaveProperty("hiddenPlayers");
+        expect(response.body).toHaveProperty("count");
+        expect(Array.isArray(response.body.hiddenPlayers)).toBe(true);
+      });
+
+      it("should require authentication", async () => {
+        const response = await request(app).get("/api/players/hidden");
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("POST /api/players/hidden (add to list)", () => {
+      it("should add players to empty hidden list", async () => {
+        const response = await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid2] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("success", true);
+        expect(response.body).toHaveProperty("added", 2);
+        expect(response.body).toHaveProperty("totalHidden", 2);
+      });
+
+      it("should add players to existing hidden list", async () => {
+        // First add some players
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1] });
+
+        // Add more players
+        const response = await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid2, testUuid3] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("added", 2);
+        expect(response.body).toHaveProperty("totalHidden", 3);
+      });
+
+      it("should not duplicate UUIDs already in list", async () => {
+        // Add player
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1] });
+
+        // Try to add same player again
+        const response = await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid2] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("added", 1); // Only testUuid2 added
+        expect(response.body).toHaveProperty("totalHidden", 2);
+      });
+
+      it("should return 400 if hiddenPlayers is not an array", async () => {
+        const response = await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: "not-an-array" });
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should return 400 if hiddenPlayers is missing", async () => {
+        const response = await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({});
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should require authentication", async () => {
+        const response = await request(app)
+          .post("/api/players/hidden")
+          .send({ hiddenPlayers: [testUuid1] });
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("PUT /api/players/hidden (replace list)", () => {
+      it("should completely replace hidden list", async () => {
+        // Add initial players
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid2] });
+
+        // Replace with different list
+        const response = await request(app)
+          .put("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid3] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("success", true);
+
+        // Verify replacement
+        const getResponse = await request(app)
+          .get("/api/players/hidden")
+          .set("x-api-key", apiKey);
+
+        expect(getResponse.body.hiddenPlayers).toEqual([testUuid3]);
+        expect(getResponse.body.count).toBe(1);
+      });
+
+      it("should clear hidden list when empty array provided", async () => {
+        // Add some players
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid2] });
+
+        // Clear list
+        const response = await request(app)
+          .put("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [] });
+
+        expect(response.status).toBe(200);
+
+        // Verify cleared
+        const getResponse = await request(app)
+          .get("/api/players/hidden")
+          .set("x-api-key", apiKey);
+
+        expect(getResponse.body.hiddenPlayers).toEqual([]);
+        expect(getResponse.body.count).toBe(0);
+      });
+
+      it("should return 400 if hiddenPlayers is not an array", async () => {
+        const response = await request(app)
+          .put("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: "not-an-array" });
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should require authentication", async () => {
+        const response = await request(app)
+          .put("/api/players/hidden")
+          .send({ hiddenPlayers: [] });
+
+        expect(response.status).toBe(401);
+      });
+    });
+
+    describe("DELETE /api/players/hidden (remove from list)", () => {
+      it("should remove specified players from list", async () => {
+        // Add players
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid2, testUuid3] });
+
+        // Remove one player
+        const response = await request(app)
+          .delete("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid2] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("success", true);
+        expect(response.body).toHaveProperty("removed", 1);
+        expect(response.body).toHaveProperty("totalHidden", 2);
+
+        // Verify removal
+        const getResponse = await request(app)
+          .get("/api/players/hidden")
+          .set("x-api-key", apiKey);
+
+        expect(getResponse.body.hiddenPlayers).toContain(testUuid1);
+        expect(getResponse.body.hiddenPlayers).toContain(testUuid3);
+        expect(getResponse.body.hiddenPlayers).not.toContain(testUuid2);
+      });
+
+      it("should remove multiple players at once", async () => {
+        // Add players
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid2, testUuid3] });
+
+        // Remove two players
+        const response = await request(app)
+          .delete("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1, testUuid3] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("removed", 2);
+        expect(response.body).toHaveProperty("totalHidden", 1);
+      });
+
+      it("should ignore UUIDs not in list", async () => {
+        // Add one player
+        await request(app)
+          .post("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1] });
+
+        // Try to remove player that's not in list
+        const response = await request(app)
+          .delete("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid2] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("removed", 0);
+        expect(response.body).toHaveProperty("totalHidden", 1);
+      });
+
+      it("should handle empty list gracefully", async () => {
+        // Don't add any players
+        const response = await request(app)
+          .delete("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: [testUuid1] });
+
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty("removed", 0);
+        expect(response.body).toHaveProperty("totalHidden", 0);
+      });
+
+      it("should return 400 if hiddenPlayers is not an array", async () => {
+        const response = await request(app)
+          .delete("/api/players/hidden")
+          .set("x-api-key", apiKey)
+          .send({ hiddenPlayers: "not-an-array" });
+
+        expect(response.status).toBe(400);
+      });
+
+      it("should require authentication", async () => {
+        const response = await request(app)
+          .delete("/api/players/hidden")
+          .send({ hiddenPlayers: [testUuid1] });
+
+        expect(response.status).toBe(401);
+      });
+    });
+  });
 });

@@ -6,7 +6,7 @@ const path = require("path");
 describe("Authentication Middleware", () => {
   describe("API Key Authentication", () => {
     it("should reject requests without API key", async () => {
-      const response = await request(app).get("/api/local/stats");
+      const response = await request(app).get("/api/players/all");
 
       expect(response.status).toBe(401);
       expect(response.body).toHaveProperty("success", false);
@@ -15,7 +15,7 @@ describe("Authentication Middleware", () => {
 
     it("should reject requests with invalid API key", async () => {
       const response = await request(app)
-        .get("/api/local/stats")
+        .get("/api/players/all")
         .set("x-api-key", "invalid-key-123");
 
       expect(response.status).toBe(401);
@@ -26,7 +26,7 @@ describe("Authentication Middleware", () => {
     it("should accept valid API key in header", async () => {
       // Use API key from fixtures/test-users.json
       const response = await request(app)
-        .get("/api/local/stats")
+        .get("/api/players/all")
         .set("x-api-key", "test-api-key-123456789");
 
       // Should not be 401 (might be 200 or 404 depending on data)
@@ -35,7 +35,7 @@ describe("Authentication Middleware", () => {
 
     it("should accept API key in query parameter", async () => {
       const response = await request(app).get(
-        "/api/local/stats?apiKey=test-api-key-123456789"
+        "/api/players/all?apiKey=test-api-key-123456789"
       );
 
       // Should not be 401
