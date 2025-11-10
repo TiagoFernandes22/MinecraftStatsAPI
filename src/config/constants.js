@@ -3,7 +3,7 @@ module.exports = {
   CACHE_DURATION: 3600000, // 1 hour in milliseconds
 
   STORAGE_QUOTAS: {
-    MAX_TOTAL_SIZE: 500 * 1024 * 1024, // 500 MB
+    MAX_TOTAL_SIZE: 20 * 1024 * 1024, // 20 MB
     MAX_FILE_COUNT: 10000,
   },
 

@@ -61,11 +61,7 @@ class AdminController {
   async getUser(req, res, next) {
     try {
       const { userId } = req.params;
-      const users = await userService.loadUsers();
-
-      const user = users.find(
-        (u) => u.userId === userId || u.username === userId
-      );
+      const user = await userService.loadUser(userId);
 
       if (!user) {
         return res.status(404).json({

@@ -3,6 +3,20 @@ const path = require("path");
 const { PATHS } = require("../config/constants");
 
 class UserService {
+  async loadUser(userId) {
+    try {
+      const content = await fs.readFile(PATHS.USERS_FILE, "utf-8");
+      const data = JSON.parse(content);
+      if (!data.users || !Array.isArray(data.users)) {
+        return null;
+      }
+      return data.users?.find(user => user.userId === userId) || null;
+    } catch (error) {
+      console.error("Error loading user:", error);
+      return null;
+    }
+  }
+
   async loadUsers() {
     try {
       const content = await fs.readFile(PATHS.USERS_FILE, "utf-8");

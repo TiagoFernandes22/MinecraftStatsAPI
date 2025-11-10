@@ -2,6 +2,7 @@ const fs = require("fs").promises;
 const path = require("path");
 const { getDirectorySize, listJsonFiles } = require("../utils/helpers");
 const { STORAGE_QUOTAS, FILE_LIMITS } = require("../config/constants");
+const userService = require("./user.service");
 
 class StorageService {
   /**
@@ -36,6 +37,17 @@ class StorageService {
    */
   validateFileSize(fileSize, maxSize = FILE_LIMITS.MAX_JSON_SIZE) {
     return fileSize <= maxSize;
+  }
+
+  /**
+   * Format bytes to human readable string
+   */
+  formatBytes(bytes) {
+    if (bytes === 0) return '0.00 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
   /**
@@ -79,26 +91,55 @@ class StorageService {
 
     try {
       const userDirs = await fs.readdir(worldsDir);
-      const stats = [];
+      const users = [];
 
-      for (const username of userDirs) {
-        const userWorldDir = path.join(worldsDir, username);
+      for (const userId of userDirs) {
+        const userWorldDir = path.join(worldsDir, userId);
         const stat = await fs.stat(userWorldDir);
 
         if (stat.isDirectory()) {
           const userStats = await this.getUserStorageStats(userWorldDir);
           if (userStats) {
-            stats.push({
-              username,
-              ...userStats,
+            const usedBytes = userStats.used.bytes;
+            const quotaBytes = userStats.limits.bytes;
+            const remainingBytes = quotaBytes - usedBytes;
+            const percentage = Math.round((usedBytes / quotaBytes) * 100);
+            const userInfo = await userService.loadUser(userId);
+            users.push({
+              userId,
+              displayName: userInfo.displayName,
+              storage: {
+                used: {
+                  bytes: usedBytes,
+                  readable: this.formatBytes(usedBytes)
+                },
+                quota: {
+                  bytes: quotaBytes,
+                  readable: this.formatBytes(quotaBytes)
+                },
+                usage: {
+                  percentage: percentage,
+                  remaining: this.formatBytes(remainingBytes)
+                },
+                files: {
+                  count: userStats.used.files,
+                  limit: userStats.limits.files
+                }
+              }
             });
           }
         }
       }
 
-      return stats;
+      return {
+        success: true,
+        users: users
+      };
     } catch (error) {
-      return [];
+      return {
+        success: false,
+        users: []
+      };
     }
   }
 }
