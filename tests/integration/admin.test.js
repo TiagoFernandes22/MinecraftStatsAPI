@@ -299,6 +299,7 @@ describe("Admin Endpoints", () => {
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty("success", true);
       expect(response.body).toHaveProperty("user");
+      expect(response.body).toHaveProperty("oldKeyPartial");
       expect(response.body.user).toHaveProperty("apiKey");
       expect(response.body.user.apiKey).not.toBe(originalApiKey);
       expect(response.body.user.apiKey).toMatch(/^[a-f0-9]{64}$/);
@@ -343,9 +344,9 @@ describe("Admin Endpoints", () => {
         .set("x-admin-key", adminKey);
 
       expect(response.status).toBe(200);
-      expect(response.body.user).toHaveProperty("oldApiKey");
-      expect(response.body.user.oldApiKey).toContain("...");
-      expect(response.body.user.oldApiKey.length).toBeLessThan(64);
+      expect(response.body).toHaveProperty("oldKeyPartial");
+      expect(response.body.oldKeyPartial).toBe(originalApiKey.substring(0, 8));
+      expect(response.body.oldKeyPartial.length).toBe(8);
     });
   });
 });

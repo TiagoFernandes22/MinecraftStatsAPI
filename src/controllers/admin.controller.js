@@ -160,13 +160,29 @@ class AdminController {
   async regenerateApiKey(req, res, next) {
     try {
       const { userId } = req.params;
+      
+      // Get current user to extract old key partial
+      const user = await userService.loadUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: "User not found",
+        });
+      }
+      
+      const oldKeyPartial = user.apiKey.substring(0, 8);
+      
       const result = await userService.regenerateApiKey(userId);
 
       if (!result.success) {
         return res.status(404).json(result);
       }
 
-      res.json(result);
+      res.json({
+        ...result,
+        oldKeyPartial,
+      });
     } catch (error) {
       next(error);
     }

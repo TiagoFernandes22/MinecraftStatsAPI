@@ -34,6 +34,7 @@ class Cache {
   getStats() {
     return {
       size: this.store.size,
+      entries: this.store.size,
       keys: Array.from(this.store.keys()),
     };
   }

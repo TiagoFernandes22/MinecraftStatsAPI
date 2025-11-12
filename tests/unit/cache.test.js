@@ -63,6 +63,7 @@ describe("Cache Utility", () => {
       const stats = cache.getStats();
 
       expect(stats.size).toBe(2);
+      expect(stats.entries).toBe(2);
       expect(stats.keys).toContain("key1");
       expect(stats.keys).toContain("key2");
     });
@@ -71,6 +72,7 @@ describe("Cache Utility", () => {
       const stats = cache.getStats();
 
       expect(stats.size).toBe(0);
+      expect(stats.entries).toBe(0);
       expect(stats.keys).toEqual([]);
     });
   });

@@ -105,9 +105,10 @@ class StorageService {
             const remainingBytes = quotaBytes - usedBytes;
             const percentage = Math.round((usedBytes / quotaBytes) * 100);
             const userInfo = await userService.loadUser(userId);
+            
             users.push({
-              userId,
-              displayName: userInfo.displayName,
+              userId: userId,
+              displayName: userInfo ? userInfo.displayName : userId,
               storage: {
                 used: {
                   bytes: usedBytes,
@@ -131,15 +132,10 @@ class StorageService {
         }
       }
 
-      return {
-        success: true,
-        users: users
-      };
+      return users;
     } catch (error) {
-      return {
-        success: false,
-        users: []
-      };
+      console.error('Error getting storage stats:', error);
+      return [];
     }
   }
 }

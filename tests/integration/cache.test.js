@@ -56,8 +56,9 @@ describe("Cache Endpoints", () => {
       expect(response.body).toHaveProperty("success", true);
       expect(response.body).toHaveProperty("cache");
       expect(response.body.cache).toHaveProperty("size");
-      expect(response.body.cache).toHaveProperty("keys");
+      expect(response.body.cache).toHaveProperty("entries");
       expect(response.body.cache.size).toBeGreaterThanOrEqual(2);
+      expect(response.body.cache.entries).toBeGreaterThanOrEqual(2);
     });
 
     it("should show zero size after clearing", async () => {
@@ -71,7 +72,7 @@ describe("Cache Endpoints", () => {
 
       expect(response.status).toBe(200);
       expect(response.body.cache.size).toBe(0);
-      expect(response.body.cache.keys).toEqual([]);
+      expect(response.body.cache.entries).toBe(0);
     });
 
     it("should require authentication", async () => {

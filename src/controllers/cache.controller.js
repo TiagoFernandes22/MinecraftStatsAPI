@@ -28,7 +28,10 @@ class CacheController {
 
       res.json({
         success: true,
-        cache: stats,
+        cache: {
+          size: stats.size,
+          entries: stats.entries,
+        },
       });
     } catch (error) {
       next(error);
